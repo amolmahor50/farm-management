@@ -20,7 +20,7 @@ export function TypographyH1({ children, className, ...props }) {
 export function TypographyH2({ children, className, ...props }) {
   return (
     <h2
-      className={cn("text-3xl font-bold tracking-tight", className)}
+      className={cn("text-2xl md:text-3xl font-bold tracking-tight", className)}
       {...props}
     >
       {children}

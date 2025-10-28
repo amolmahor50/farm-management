@@ -1,6 +1,7 @@
 import { AuthProvider } from "./AuthContext";
+import { TaskProvider } from "./TaskContext";
 
-const contexts = [[AuthProvider]];
+const contexts = [[AuthProvider], [TaskProvider]];
 
 export const AppProviders = ({ children }) => {
   return contexts.reduceRight(

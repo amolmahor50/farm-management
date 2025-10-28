@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { verifyLoginOTP, sendLoginOTP } from "@/services/authService";
 import { useNavigate } from "react-router-dom";
+import { toastError } from "../../utils/toast";
 
 export default function OtpForm() {
   const { mobile, setStep, setIsLoading, setUser, logout, isLoading } =
@@ -39,23 +40,23 @@ export default function OtpForm() {
 
     try {
       const res = await verifyLoginOTP(mobile, otp);
-      console.log("OTP Verify Response:", res);
 
       if (res.success) {
         const userData = res.user;
 
         // ✅ Check if user is active and subscription is active
         if (!userData.isActive || !userData.subscription?.isActive) {
-          alert("Your account or subscription is inactive. Logging out...");
-          logout();
+          setError("Your account or subscription is inactive...");
           return;
         }
 
-        // ✅ Save user data
+        // // ✅ Save user data
         setUser(userData);
 
+        console.log("verifying done..", userData);
+
         // ✅ Decide next step
-        if (!userData.name) {
+        if (userData.name == undefined || userData.email == undefined) {
           setStep("userDetails");
         } else {
           navigate("/dashboard");
@@ -146,6 +147,8 @@ export default function OtpForm() {
             {isLoading && <Spinner className="size-4" />}
             {isLoading ? "Verifying..." : "Verify"}
           </Button>
+
+          <span className="text-sm text-red-500">{error}</span>
 
           <FieldDescription className="text-center">
             Didn&apos;t receive the code?{" "}

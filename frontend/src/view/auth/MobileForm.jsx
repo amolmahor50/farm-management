@@ -42,7 +42,7 @@ export default function MobileForm() {
     try {
       // ✅ Await API response
       const res = await sendLoginOTP(mobile);
-      console.log("OTP Response:", res);
+      // console.log("OTP Response:", res);
 
       if (res?.success) {
         // ✅ OTP sent successfully → move to OTP step

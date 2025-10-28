@@ -33,7 +33,7 @@ function App() {
   return (
     <Routes>
       {/* ---------- CONDITIONAL ROOT ---------- */}
-      {!user ? (
+      {!user?.name ? (
         // User not logged in → show login/auth layout
         <Route path="/*" element={<AuthLayout />} />
       ) : (

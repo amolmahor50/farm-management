@@ -10,6 +10,7 @@ import {
 } from "@/custom/Typography";
 import { SummaryCard } from "@/components/SummaryCard";
 import { mockTasks } from "../../data/mockData";
+import { QuickTask } from "./QuickTask";
 
 export const Tasks = () => {
   const [tasks] = useState(mockTasks);
@@ -64,8 +65,13 @@ export const Tasks = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <TypographyH2> Task & Activity Planner</TypographyH2>
         <Button>
-          <Icon name="Plus" />
-          Add Loan
+          <QuickTask
+            trigger={
+              <span className="flex items-center gap-1">
+                <Icon name="Plus" /> Add Task
+              </span>
+            }
+          />
         </Button>
       </div>
 

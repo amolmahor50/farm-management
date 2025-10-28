@@ -33,8 +33,8 @@ export const AuthProvider = ({ children }) => {
           setUser(fetchedUser);
 
           // If user details missing, go to userDetails step
-          if (!fetchedUser.name) {
-            setStep("userDetails");
+          if (!fetchedUser.name || !fetchedUser.name) {
+            return setStep("userDetails");
           }
 
           // ✅ Only redirect to dashboard if user is on login/root route

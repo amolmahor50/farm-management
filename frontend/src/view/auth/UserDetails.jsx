@@ -83,7 +83,7 @@ export default function UserDetails() {
       if (res.success) {
         setUser(res.user); // update context user
         // setStep("dashboard"); // move to dashboard
-        navigate("dashboard"); // move to dashboard
+        navigate("/dashboard"); // move to dashboard
       } else {
         setServerError(res.message || "Something went wrong");
       }
