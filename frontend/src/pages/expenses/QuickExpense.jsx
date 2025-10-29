@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -17,51 +18,100 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createExpense } from "../../services/expenseService";
-import { toastError, toastSuccess } from "@/utils/toast";
+import { useExpenses } from "@/contexts/ExpenseContext";
+import { CATEGORIES, PAYMENT_METHODS } from "@/constants/expensesConstants";
+import { toastError } from "../../utils/toast";
 
-export const QuickExpense = ({ open, onClose }) => {
+export const QuickExpense = ({ expense, trigger }) => {
   const today = new Date().toISOString().split("T")[0];
-  const [formData, setFormData] = useState({ date: today });
+  const { addExpense, updateExpense } = useExpenses();
 
-  // Backend enum values
-  const categories = [
-    "seeds",
-    "fertilizer",
-    "pesticide",
-    "labor",
-    "irrigation",
-    "equipment",
-    "transport",
-    "electricity",
-    "rent",
-    "other",
-  ];
+  const [formData, setFormData] = useState({
+    date: today,
+    category: "",
+    amount: "",
+    description: "",
+    paymentMethod: "cash",
+  });
 
-  const handleChange = (field, value) =>
+  const [errors, setErrors] = useState({});
+  const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (expense) {
+        setFormData({
+          date: expense.date?.split("T")[0] || today,
+          category: expense.category || "",
+          amount: expense.amount || "",
+          description: expense.description || "",
+          paymentMethod: expense.paymentMethod || "cash",
+        });
+      } else {
+        setFormData({
+          date: today,
+          category: "",
+          amount: "",
+          description: "",
+          paymentMethod: "cash",
+        });
+      }
+      setErrors({});
+    }
+  }, [open, expense]);
+
+  const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.date) newErrors.date = "Please select a date.";
+    if (!formData.category) newErrors.category = "Please choose a category.";
+    if (!formData.amount || Number(formData.amount) <= 0)
+      newErrors.amount = "Enter a valid positive amount.";
+    if (!formData.description.trim())
+      newErrors.description = "Description cannot be empty.";
+    if (!formData.paymentMethod)
+      newErrors.paymentMethod = "Please select a payment method.";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
+
+    setIsSaving(true);
     try {
-      const data = await createExpense(formData);
-      toastSuccess("Expense added successfully!");
-      onClose();
-      setFormData({ date: today });
+      if (expense?._id) {
+        await updateExpense(expense._id, formData);
+      } else {
+        await addExpense(formData);
+      }
+      setOpen(false);
     } catch (error) {
-      toastError(error.response?.data?.message || "Failed to add expense");
+      console.error("Expense save failed:", error);
+      toastError("Please try again...");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+
       <DialogContent className="max-h-[80vh] md:max-w-md overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Expense</DialogTitle>
+          <DialogTitle>{expense ? "Edit Expense" : "Add Expense"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <div className="space-y-2">
+          {/* Date */}
+          <div className="space-y-1">
             <Label>Date</Label>
             <Input
               type="date"
@@ -69,12 +119,16 @@ export const QuickExpense = ({ open, onClose }) => {
               value={formData.date}
               onChange={(e) => handleChange("date", e.target.value)}
             />
+            {errors.date && (
+              <p className="text-red-500 text-sm">{errors.date}</p>
+            )}
           </div>
 
-          <div className="space-y-2">
+          {/* Category */}
+          <div className="space-y-1">
             <Label>Category</Label>
             <Select
-              value={formData.category || ""}
+              value={formData.category}
               onValueChange={(val) => handleChange("category", val)}
               required
             >
@@ -82,49 +136,84 @@ export const QuickExpense = ({ open, onClose }) => {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
+                {CATEGORIES.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {errors.category && (
+              <p className="text-red-500 text-sm">{errors.category}</p>
+            )}
           </div>
 
-          <div className="space-y-2">
+          {/* Amount */}
+          <div className="space-y-1">
             <Label>Amount (₹)</Label>
             <Input
               type="number"
-              required
-              value={formData.amount || ""}
+              value={formData.amount}
               onChange={(e) => handleChange("amount", e.target.value)}
             />
+            {errors.amount && (
+              <p className="text-red-500 text-sm">{errors.amount}</p>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label>Crop</Label>
-            <Input
-              type="text"
+          {/* Payment Method */}
+          <div className="space-y-1">
+            <Label>Payment Method</Label>
+            <Select
+              value={formData.paymentMethod}
+              onValueChange={(val) => handleChange("paymentMethod", val)}
               required
-              value={formData.crop || ""}
-              onChange={(e) => handleChange("crop", e.target.value)}
-            />
+            >
+              <SelectTrigger className="w-full capitalize">
+                <SelectValue placeholder="Select payment method" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_METHODS.map((method) => (
+                  <SelectItem key={method} value={method}>
+                    {method.charAt(0).toUpperCase() + method.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.paymentMethod && (
+              <p className="text-red-500 text-sm">{errors.paymentMethod}</p>
+            )}
           </div>
 
-          <div className="space-y-2">
+          {/* Description */}
+          <div className="space-y-1">
             <Label>Description</Label>
             <Textarea
               rows={3}
-              value={formData.description || ""}
+              value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
             />
+            {errors.description && (
+              <p className="text-red-500 text-sm">{errors.description}</p>
+            )}
           </div>
 
           <DialogFooter className="pt-4 flex justify-between">
-            <Button type="button" variant="destructive" onClick={onClose}>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setOpen(false)}
+              disabled={isSaving}
+            >
               Cancel
             </Button>
-            <Button type="submit">Add Expense</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving
+                ? "Saving..."
+                : expense
+                ? "Update Expense"
+                : "Add Expense"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

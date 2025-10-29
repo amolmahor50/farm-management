@@ -11,6 +11,7 @@ const expenseSchema = new mongoose.Schema(
       type: String,
       required: [true, "Category is required"],
       enum: [
+        "all",
         "seeds",
         "fertilizer",
         "pesticide",

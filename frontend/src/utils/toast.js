@@ -8,9 +8,9 @@ import { toast as hotToast } from "react-hot-toast";
 export const toastSuccess = (message) => {
   hotToast.success(message, {
     duration: 4000,
-    position: "top-right",
+    position: "bottom-center",
     style: {
-      fontSize: "14px",
+      fontSize: "12px",
       borderRadius: "8px",
       padding: "10px 16px",
     },
@@ -24,9 +24,9 @@ export const toastSuccess = (message) => {
 export const toastError = (message) => {
   hotToast.error(message, {
     duration: 5000,
-    position: "top-right",
+    position: "bottom-center",
     style: {
-      fontSize: "14px",
+      fontSize: "12px",
       borderRadius: "8px",
       padding: "10px 16px",
     },
@@ -40,9 +40,9 @@ export const toastError = (message) => {
 export const toastInfo = (message) => {
   hotToast(message, {
     duration: 4000,
-    position: "top-right",
+    position: "bottom-center",
     style: {
-      fontSize: "14px",
+      fontSize: "12px",
       borderRadius: "8px",
       padding: "10px 16px",
       background: "#3b82f6",

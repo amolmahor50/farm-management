@@ -1,4 +1,4 @@
-const Expense = require('../models/Expense');
+const Expense = require("../models/Expense");
 
 exports.getAllExpenses = async (req, res, next) => {
   try {
@@ -17,7 +17,7 @@ exports.getAllExpenses = async (req, res, next) => {
       .sort({ date: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .populate('cropAssociated', 'cropName');
+      .populate("cropAssociated", "cropName");
 
     const count = await Expense.countDocuments(query);
 
@@ -25,7 +25,7 @@ exports.getAllExpenses = async (req, res, next) => {
       success: true,
       data: expenses,
       totalPages: Math.ceil(count / limit),
-      currentPage: page
+      currentPage: page,
     });
   } catch (error) {
     next(error);
@@ -36,19 +36,19 @@ exports.getExpense = async (req, res, next) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: "Expense not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: expense
+      data: expense,
     });
   } catch (error) {
     next(error);
@@ -57,15 +57,19 @@ exports.getExpense = async (req, res, next) => {
 
 exports.createExpense = async (req, res, next) => {
   try {
-    const expense = await Expense.create({
+    // Ensure date is always present (with time)
+    const expenseData = {
       user: req.user.id,
-      ...req.body
-    });
+      ...req.body,
+      date: req.body.date ? new Date(req.body.date) : new Date(),
+    };
+
+    const expense = await Expense.create(expenseData);
 
     res.status(201).json({
       success: true,
-      message: 'Expense created successfully',
-      data: expense
+      message: "Expense created successfully",
+      data: expense,
     });
   } catch (error) {
     next(error);
@@ -83,14 +87,14 @@ exports.updateExpense = async (req, res, next) => {
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: "Expense not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Expense updated successfully',
-      data: expense
+      message: "Expense updated successfully",
+      data: expense,
     });
   } catch (error) {
     next(error);
@@ -101,19 +105,19 @@ exports.deleteExpense = async (req, res, next) => {
   try {
     const expense = await Expense.findOneAndDelete({
       _id: req.params.id,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: "Expense not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Expense deleted successfully'
+      message: "Expense deleted successfully",
     });
   } catch (error) {
     next(error);
@@ -126,18 +130,18 @@ exports.getExpenseStats = async (req, res, next) => {
       { $match: { user: req.user._id } },
       {
         $group: {
-          _id: '$category',
-          totalAmount: { $sum: '$amount' },
+          _id: "$category",
+          totalAmount: { $sum: "$amount" },
           count: { $sum: 1 },
-          avgAmount: { $avg: '$amount' }
-        }
+          avgAmount: { $avg: "$amount" },
+        },
       },
-      { $sort: { totalAmount: -1 } }
+      { $sort: { totalAmount: -1 } },
     ]);
 
     res.status(200).json({
       success: true,
-      data: stats
+      data: stats,
     });
   } catch (error) {
     next(error);
