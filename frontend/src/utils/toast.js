@@ -7,7 +7,7 @@ import { toast as hotToast } from "react-hot-toast";
  */
 export const toastSuccess = (message) => {
   hotToast.success(message, {
-    duration: 4000,
+    duration: 6500,
     position: "bottom-center",
     style: {
       fontSize: "12px",
@@ -23,7 +23,7 @@ export const toastSuccess = (message) => {
  */
 export const toastError = (message) => {
   hotToast.error(message, {
-    duration: 5000,
+    duration: 6500,
     position: "bottom-center",
     style: {
       fontSize: "12px",
@@ -39,7 +39,7 @@ export const toastError = (message) => {
  */
 export const toastInfo = (message) => {
   hotToast(message, {
-    duration: 4000,
+    duration: 6500,
     position: "bottom-center",
     style: {
       fontSize: "12px",

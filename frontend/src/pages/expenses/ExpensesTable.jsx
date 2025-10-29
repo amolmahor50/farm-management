@@ -43,6 +43,23 @@ export default function ExpensesTable({ filteredExpenses = [] }) {
     });
   }, [filteredExpenses, expenses]);
 
+  // ✅ Helper: format date + time safely
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return "—";
+    const date = new Date(dateStr);
+    if (isNaN(date)) return "—";
+
+    // Example output: 28 Oct 2025, 4:45 PM
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   // ✅ Delete expense instantly
   const handleDelete = async (id) => {
     if (!id) return;
@@ -57,24 +74,12 @@ export default function ExpensesTable({ filteredExpenses = [] }) {
     }
   };
 
-  // ✅ Helper: format date safely
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    if (isNaN(date)) return "—";
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
+            <TableHead>Date & Time</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Amount</TableHead>
@@ -93,8 +98,8 @@ export default function ExpensesTable({ filteredExpenses = [] }) {
           ) : (
             expensesList.map((exp) => (
               <TableRow key={exp._id}>
-                {/* ✅ Date */}
-                <TableCell>{formatDate(exp.date)}</TableCell>
+                {/* ✅ Date + Time */}
+                <TableCell>{formatDateTime(exp.date)}</TableCell>
 
                 {/* ✅ Category pill */}
                 <TableCell>
@@ -133,7 +138,11 @@ export default function ExpensesTable({ filteredExpenses = [] }) {
                   <QuickExpense
                     expense={exp}
                     trigger={
-                      <Button size="icon" variant="ghost" title="Edit Expense">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        title="Edit Expense"
+                      >
                         <Icon name="Edit2" />
                       </Button>
                     }
@@ -145,7 +154,7 @@ export default function ExpensesTable({ filteredExpenses = [] }) {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="text-red-600 hover:bg-red-50"
+                        className="text-red-600 bg-red-100 hover:text-red-600 hover:bg-red-100"
                         onClick={() => setDeleteTarget(exp._id)}
                       >
                         <Icon name="Trash2" />

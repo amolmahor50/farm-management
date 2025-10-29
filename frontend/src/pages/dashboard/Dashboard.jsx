@@ -95,16 +95,20 @@ export function Dashboard() {
       <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <TypographyH2>Dashboard Overview</TypographyH2>
         <div className="flex items-center gap-2">
-          <Button
-            size="xs"
-            variant="destructive"
-            onClick={() => handleQuickAdd("expense")}
-          >
-            <Icon name="Plus" /> Add Expense
-          </Button>
-          <Button size="xs" onClick={() => handleQuickAdd("yield")}>
-            <Icon name="Plus" /> Add Yield
-          </Button>
+          <QuickExpense
+            trigger={
+              <Button size="xs" variant="destructive">
+                <Icon name="Plus" /> Add Expense
+              </Button>
+            }
+          />
+          <QuickYield
+            trigger={
+              <Button size="xs">
+                <Icon name="Plus" /> Add Yield
+              </Button>
+            }
+          />
           <Button
             size="xs"
             className="bg-blue-600 hover:bg-blue-700"

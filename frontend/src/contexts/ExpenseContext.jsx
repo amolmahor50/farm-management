@@ -30,7 +30,7 @@ export const ExpenseProvider = ({ children }) => {
       const data = await getAllExpenses();
       const validList = Array.isArray(data?.data) ? data.data : [];
       // Always sort by date (latest first)
-      console.log(data.data);
+      // console.log(data.data);
 
       setExpenses(
         validList.sort(
