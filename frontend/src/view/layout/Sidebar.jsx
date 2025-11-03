@@ -11,7 +11,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TypographyH5 } from "../../custom/Typography";
+import { TypographyH5 } from "@/custom/Typography";
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const { logout, user } = useAuth();

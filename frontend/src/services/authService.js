@@ -9,7 +9,13 @@ export const sendLoginOTP = async (phone) => {
 /** 2. Verify OTP for login */
 export const verifyLoginOTP = async (phone, otp) => {
   const { data } = await API.post("/auth/verify-otp", { phone, otp });
-  if (data?.token) localStorage.setItem("token", data.token);
+
+  if (
+    data?.user?.isActive ||
+    data?.user?.subscription?.isActive ||
+    data?.token
+  )
+    localStorage.setItem("token", data.token);
   return data;
 };
 

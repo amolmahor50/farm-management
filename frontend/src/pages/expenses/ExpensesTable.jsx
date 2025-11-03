@@ -1,4 +1,14 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Icon } from "@/custom/Icon";
+import { TypographyH4 } from "@/custom/Typography";
+import { QuickExpense } from "./QuickExpense";
+import { useExpenses } from "@/contexts/ExpenseContext";
+import { capitalize } from "@/utils/capatalize";
+import { CATEGORIES, PAYMENT_METHODS } from "@/constants/expensesConstants";
 import {
   Table,
   TableBody,
@@ -7,193 +17,299 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/custom/Icon";
-import { QuickExpense } from "./QuickExpense";
-import { useExpenses } from "@/contexts/ExpenseContext";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { formatDateTime } from "@/utils/formatDateTime";
+import { DeleteDialog } from "@/components/DeleteDialog";
 
-export default function ExpensesTable({ filteredExpenses = [] }) {
-  const { removeExpense, expenses } = useExpenses();
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // ✅ Merge filtered + context data
-  const expensesList = useMemo(() => {
-    const list =
-      Array.isArray(filteredExpenses) && filteredExpenses.length > 0
-        ? filteredExpenses
-        : expenses || [];
-
-    // ✅ Sort newest first
-    return [...list].sort((a, b) => {
-      const dateA = new Date(a.date || 0).getTime();
-      const dateB = new Date(b.date || 0).getTime();
-      return dateB - dateA;
-    });
-  }, [filteredExpenses, expenses]);
-
-  // ✅ Helper: format date + time safely
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    if (isNaN(date)) return "—";
-
-    // Example output: 28 Oct 2025, 4:45 PM
-    return date.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+// 🧩 Helper: category badge style
+const getCategoryBadge = (category) => {
+  const colorMap = {
+    fertilizer: "bg-green-100 text-green-700",
+    labor: "bg-blue-100 text-blue-700",
+    seeds: "bg-yellow-100 text-yellow-700",
+    equipment: "bg-red-100 text-red-700",
+    irrigation: "bg-cyan-100 text-cyan-700",
+    other: "bg-gray-100 text-gray-700",
   };
+  return colorMap[category?.toLowerCase()] || "bg-gray-100 text-gray-700";
+};
 
-  // ✅ Delete expense instantly
+// 🧩 Filter logic
+const applyFilters = (expenses, filters) => {
+  const { category, payment, minAmount, maxAmount } = filters;
+  return expenses.filter((exp) => {
+    const matchCategory =
+      category === "all" || exp.category?.toLowerCase() === category;
+    const matchPayment =
+      payment === "all" || exp.paymentMethod?.toLowerCase() === payment;
+    const amount = Number(exp.amount) || 0;
+    const matchAmount =
+      (!minAmount || amount >= minAmount) &&
+      (!maxAmount || amount <= maxAmount);
+    return matchCategory && matchPayment && matchAmount;
+  });
+};
+
+export default function ExpensesTable() {
+  const { expenses = [], removeExpense } = useExpenses();
+
+  const [filters, setFilters] = useState({
+    category: "all",
+    payment: "all",
+    minAmount: "",
+    maxAmount: "",
+  });
+
+  //  Pagination
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+  const startIndex = (page - 1) * perPage;
+  const endIndex = page * perPage;
+
+  //  Apply filters
+  const filteredExpenses = useMemo(
+    () => applyFilters(expenses, filters),
+    [expenses, filters]
+  );
+
+  const totalPages = Math.ceil(filteredExpenses.length / perPage);
+  const paginatedExpenses = filteredExpenses.slice(startIndex, endIndex);
+
+  const total = useMemo(
+    () =>
+      filteredExpenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0),
+    [filteredExpenses]
+  );
+
+  //  Delete Expense
   const handleDelete = async (id) => {
-    if (!id) return;
-    try {
-      setIsDeleting(true);
-      await removeExpense(id);
-    } catch (error) {
-      console.error("Delete failed:", error);
-    } finally {
-      setIsDeleting(false);
-      setDeleteTarget(null);
-    }
+    await removeExpense(id);
   };
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date & Time</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Payment Type</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
+    <Card className="p-4 space-y-4">
+      {/* Header Controls */}
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <TypographyH4>
+          Total:{" "}
+          <span className="text-red-600">₹{total.toLocaleString("en-IN")}</span>
+        </TypographyH4>
 
-        <TableBody>
-          {expensesList.length === 0 ? (
+        <div className="flex flex-wrap gap-3">
+          {/* Category Filter */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={filters.category}
+              onValueChange={(v) => setFilters((f) => ({ ...f, category: v }))}
+            >
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {capitalize(cat)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Payment Filter */}
+          <div className="space-y-2">
+            <Label>Payment</Label>
+            <Select
+              value={filters.payment}
+              onValueChange={(v) => setFilters((f) => ({ ...f, payment: v }))}
+            >
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {PAYMENT_METHODS.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {capitalize(p.replace("_", " "))}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Amount Filter */}
+          <div className="space-y-2">
+            <Label>Min ₹</Label>
+            <Input
+              className="w-[90px]"
+              value={filters.minAmount}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, minAmount: e.target.value }))
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Max ₹</Label>
+            <Input
+              className="w-[90px]"
+              value={filters.maxAmount}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, maxAmount: e.target.value }))
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Table (desktop) */}
+      <div className="">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-gray-500">
-                No expenses found.
-              </TableCell>
+              <TableHead>Date</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ) : (
-            expensesList.map((exp) => (
-              <TableRow key={exp._id}>
-                {/* ✅ Date + Time */}
-                <TableCell>{formatDateTime(exp.date)}</TableCell>
+          </TableHeader>
 
-                {/* ✅ Category pill */}
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs capitalize font-medium ${
-                      exp.category?.toLowerCase() === "fertilizer"
-                        ? "bg-green-100 text-green-700"
-                        : exp.category?.toLowerCase() === "labor"
-                        ? "bg-blue-100 text-blue-700"
-                        : exp.category?.toLowerCase() === "seeds"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : exp.category?.toLowerCase() === "equipment"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {exp.category || "N/A"}
-                  </span>
-                </TableCell>
-
-                {/* ✅ Description */}
-                <TableCell>{exp.description?.trim() || "—"}</TableCell>
-
-                {/* ✅ Amount */}
-                <TableCell>
-                  ₹{Number(exp.amount || 0).toLocaleString("en-IN")}
-                </TableCell>
-
-                {/* ✅ Payment Type */}
-                <TableCell className="capitalize">
-                  {exp.paymentMethod || "—"}
-                </TableCell>
-
-                {/* ✅ Actions */}
-                <TableCell className="flex gap-2">
-                  <QuickExpense
-                    expense={exp}
-                    trigger={
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        title="Edit Expense"
-                      >
-                        <Icon name="Edit2" />
-                      </Button>
-                    }
-                  />
-
-                  {/* Delete Button */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-red-600 bg-red-100 hover:text-red-600 hover:bg-red-100"
-                        onClick={() => setDeleteTarget(exp._id)}
-                      >
-                        <Icon name="Trash2" />
-                      </Button>
-                    </AlertDialogTrigger>
-
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Delete this expense?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. It will permanently
-                          remove this expense.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel
-                          disabled={isDeleting}
-                          onClick={() => setDeleteTarget(null)}
-                        >
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          disabled={isDeleting}
-                          onClick={() => handleDelete(deleteTarget)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          {isDeleting ? "Deleting..." : "Delete"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+          <TableBody>
+            {paginatedExpenses.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center py-6 text-gray-500"
+                >
+                  No matching expenses.
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+            ) : (
+              paginatedExpenses.map((exp) => (
+                <TableRow key={exp._id}>
+                  <TableCell>{formatDateTime(exp.date)}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getCategoryBadge(
+                        exp.category
+                      )}`}
+                    >
+                      {exp.category || "N/A"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-pre-wrap break-words">
+                    {exp?.description
+                      ? exp.description.length > 30
+                        ? `${exp.description.slice(0, 30)}....`
+                        : exp.description
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    ₹{Number(exp.amount || 0).toLocaleString("en-IN")}
+                  </TableCell>
+                  <TableCell className="capitalize">
+                    {exp.paymentMethod || "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Icon name="Ellipsis" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <QuickExpense
+                            view
+                            expense={exp}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start"
+                              >
+                                <Icon name="Eye" /> View
+                              </Button>
+                            }
+                          />
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <QuickExpense
+                            expense={exp}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start"
+                              >
+                                <Icon name="Edit2" /> Edit
+                              </Button>
+                            }
+                          />
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <DeleteDialog
+                            title="Delete this expense?"
+                            description="This action cannot be undone. The expense will be permanently removed."
+                            triggerText="Delete"
+                            icon="Trash2"
+                            onDelete={() => handleDelete(exp._id)}
+                          />
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent className="flex justify-center">
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              />
+            </PaginationItem>
+            <span className="px-4 text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <PaginationItem>
+              <PaginationNext
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
+    </Card>
   );
 }

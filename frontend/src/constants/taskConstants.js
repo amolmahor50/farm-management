@@ -27,3 +27,5 @@ export const TASK_STATUSES = [
   { value: "cancelled", label: "Cancelled" },
   { value: "overdue", label: "Overdue" },
 ];
+
+export const RECURRING_FREQUENCIES = ["daily", "weekly", "monthly", "seasonal"];

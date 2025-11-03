@@ -1,15 +1,9 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loading } from "@/components/Loading";
 
 const ProtectedRoute = ({ children }) => {
-  const { user, isLoading, setStep } = useAuth();
+  const { user, setStep } = useAuth();
   const location = useLocation();
-
-  // Still loading user info → show loader
-  if (isLoading) {
-    return <Loading />;
-  }
 
   // No user object → redirect to login page
   if (!user) {

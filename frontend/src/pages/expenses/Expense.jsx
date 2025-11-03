@@ -1,67 +1,27 @@
-import { useState, useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { Card } from "@/components/ui/card";
+import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/custom/Icon";
-import { TypographyH2, TypographyH4 } from "@/custom/Typography";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { TypographyH2 } from "@/custom/Typography";
 import { QuickExpense } from "./QuickExpense";
 import ExpensesTable from "./ExpensesTable";
 import { useExpenses } from "@/contexts/ExpenseContext";
 import { CATEGORIES, CATEGORY_COLORS } from "@/constants/expensesConstants";
 import { Loading } from "@/components/Loading";
 import { EmptyState } from "@/components/EmptyState";
-
-//  Capitalize helper
-const capitalize = (str = "") =>
-  str.length ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : str;
+import { capitalize } from "@/utils/capatalize";
+import { SummaryCard } from "@/components/SummaryCard";
 
 export const Expense = () => {
-  //  Defensive check if hook returns undefined
-  const expenseContext = useExpenses() || {};
-  const { expenses, loading, addExpense } = expenseContext;
+  const { expenses, loading, fetchExpenses } = useExpenses();
 
-  const [filterCategory, setFilterCategory] = useState("all");
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
 
-  //  Defensive: ensure array
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
 
-  //  Filter by category
-  const filteredExpenses = useMemo(() => {
-    if (filterCategory === "all") return safeExpenses;
-    return safeExpenses.filter(
-      (exp) => exp?.category?.toLowerCase() === filterCategory.toLowerCase()
-    );
-  }, [safeExpenses, filterCategory]);
-
-  //  Total amount
-  const totalExpenses = useMemo(() => {
-    return filteredExpenses.reduce(
-      (sum, exp) => sum + (Number(exp?.amount) || 0),
-      0
-    );
-  }, [filteredExpenses]);
-
-  //  Prepare data for Pie & Bar charts
-  const categoryData = useMemo(() => {
+  // Compute category-wise total expenses
+  const categoryTotals = useMemo(() => {
     const totals = {};
     safeExpenses.forEach((exp) => {
       const category = exp?.category?.toLowerCase() || "unknown";
@@ -69,30 +29,21 @@ export const Expense = () => {
       totals[category] = (totals[category] || 0) + amount;
     });
 
-    return Object.entries(totals).map(([name, value]) => ({
-      name: capitalize(name),
-      value,
-      color: CATEGORY_COLORS[name] || "#9ca3af",
+    return CATEGORIES.map((cat) => ({
+      name: capitalize(cat),
+      value: totals[cat] || 0,
+      color: CATEGORY_COLORS[cat] || "#9ca3af",
+      icon: getCategoryIcon(cat),
     }));
   }, [safeExpenses]);
-
-  const barData = useMemo(
-    () =>
-      categoryData.map((d) => ({
-        category: d.name,
-        amount: d.value,
-        color: d.color,
-      })),
-    [categoryData]
-  );
 
   if (loading) return <Loading />;
 
   return (
     <>
-      {expenses?.length > 0 ? (
+      {safeExpenses.length > 0 ? (
         <div className="space-y-6">
-          {/*  Header */}
+          {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <TypographyH2>Expense Management</TypographyH2>
             <QuickExpense
@@ -101,116 +52,24 @@ export const Expense = () => {
                   <Icon name="Plus" /> Add Expense
                 </Button>
               }
-              onAdd={addExpense}
             />
           </div>
 
-          {/*  Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 🥧 Pie Chart */}
-            <Card className="p-4">
-              <TypographyH4>Expenses by Category</TypographyH4>
-              {categoryData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={140}
-                      dataKey="value"
-                      labelLine={false}
-                      labelStyle={{ fontSize: "12px" }}
-                      label={({ name, percent }) =>
-                        `${name}: ${(percent * 100).toFixed(0)}%`
-                      }
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v) => `₹${Number(v).toLocaleString()}`}
-                      contentStyle={{ fontSize: "12px" }}
-                    />
-                    {/* <Legend /> */}
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-gray-500 text-center mt-8">
-                  No expense data available
-                </p>
-              )}
-            </Card>
-
-            {/* 📊 Bar Chart */}
-            <Card className="p-4">
-              <TypographyH4>Expenses by Category (Bar)</TypographyH4>
-              {barData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={barData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip
-                      formatter={(v) => `₹${Number(v).toLocaleString()}`}
-                      contentStyle={{ fontSize: "12px" }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="amount"
-                      name="Amount (₹)"
-                      barSize={30}
-                      radius={[0, 0, 0, 0]}
-                    >
-                      {barData.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-gray-500 text-center mt-8">
-                  No expense data available
-                </p>
-              )}
-            </Card>
+          {/* Category-wise Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {categoryTotals.map((cat, index) => (
+              <SummaryCard
+                key={index}
+                title={cat.name}
+                icon={cat.icon}
+                value={`₹${cat.value.toLocaleString()}`}
+                color={cat.color}
+              />
+            ))}
           </div>
 
-          {/*  Total + Filter + Table */}
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="space-y-2">
-                <TypographyH4>Total Expenses</TypographyH4>
-                <TypographyH2 className="text-red-600">
-                  ₹{totalExpenses.toLocaleString()}
-                </TypographyH2>
-              </div>
-
-              {/* Category Filter */}
-              <div>
-                <Select
-                  value={filterCategory}
-                  onValueChange={(value) => setFilterCategory(value)}
-                >
-                  <SelectTrigger className="w-full md:w-40">
-                    <Icon name="Filter" />
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {capitalize(cat)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <ExpensesTable filteredExpenses={filteredExpenses} />
-          </Card>
+          {/* Expenses Table */}
+          <ExpensesTable />
         </div>
       ) : (
         <EmptyState
@@ -230,4 +89,32 @@ export const Expense = () => {
       )}
     </>
   );
+};
+
+// Function: assign icons to categories
+const getCategoryIcon = (category) => {
+  switch (category) {
+    case "seeds":
+      return "Sprout";
+    case "fertilizer":
+      return "FlaskConical";
+    case "pesticide":
+      return "Bug";
+    case "labor":
+      return "Users";
+    case "irrigation":
+      return "Droplets";
+    case "equipment":
+      return "Wrench";
+    case "transport":
+      return "Truck";
+    case "electricity":
+      return "Zap";
+    case "rent":
+      return "Home";
+    case "other":
+      return "Circle";
+    default:
+      return "Wallet";
+  }
 };

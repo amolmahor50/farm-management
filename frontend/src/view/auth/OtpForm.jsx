@@ -17,7 +17,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { verifyLoginOTP, sendLoginOTP } from "@/services/authService";
 import { useNavigate } from "react-router-dom";
-import { toastError } from "../../utils/toast";
 
 export default function OtpForm() {
   const { mobile, setStep, setIsLoading, setUser, logout, isLoading } =
@@ -44,18 +43,20 @@ export default function OtpForm() {
       if (res.success) {
         const userData = res.user;
 
-        // ✅ Check if user is active and subscription is active
+        //  Check if user is active and subscription is active
         if (!userData.isActive || !userData.subscription?.isActive) {
-          setError("Your account or subscription is inactive...");
+          setError(
+            "Your account or subscription is inactive... Please contact to support Team"
+          );
           return;
         }
 
-        // // ✅ Save user data
+        // //  Save user data
         setUser(userData);
 
         console.log("verifying done..", userData);
 
-        // ✅ Decide next step
+        //  Decide next step
         if (userData.name == undefined || userData.email == undefined) {
           setStep("userDetails");
         } else {
@@ -131,12 +132,14 @@ export default function OtpForm() {
             </InputOTP>
 
             <FieldDescription className="text-center">
-              Enter the 6-digit code sent to your mobile.
+              Enter the 6-digit code sent to your mobile.{" "}
+              <span
+                onClick={() => setStep("mobile")}
+                className="text-blue-600 cursor-pointer hover:underline"
+              >
+                Change Mobile Number
+              </span>
             </FieldDescription>
-
-            {error && (
-              <p className="text-center text-red-500 text-sm">{error}</p>
-            )}
           </Field>
 
           <Button
@@ -159,6 +162,7 @@ export default function OtpForm() {
               onClick={handleResend}
               disabled={resendLoading}
             >
+              {resendLoading && <Spinner />}
               {resendLoading ? "Resending..." : "Resend"}
             </Button>
           </FieldDescription>

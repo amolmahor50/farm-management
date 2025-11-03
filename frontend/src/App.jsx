@@ -1,8 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
-import { Loading } from "@/components/Loading";
-
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import AuthLayout from "@/view/auth/AuthLayout";
 import { MainLayout } from "@/view/layout/MainLayout";
@@ -22,18 +20,17 @@ import { Insurance } from "@/pages/insurance/Insurance";
 import { CropRotation } from "@/pages/crop-rotation/CropRotation";
 import { Weather } from "@/pages/weather/Weather";
 import { AIInsights } from "@/pages/ai-insights/AIInsights";
+import { Loading } from "@/components/Loading";
 
 function App() {
-  const { user, isLoading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
-  if (isLoading) {
-    return <Loading />;
-  }
+  if (isAuthenticated) return <Loading />;
 
   return (
     <Routes>
       {/* ---------- CONDITIONAL ROOT ---------- */}
-      {!user?.name ? (
+      {!user?.name || !user?.isActive || !user?.subscription?.isActive ? (
         // User not logged in → show login/auth layout
         <Route path="/*" element={<AuthLayout />} />
       ) : (

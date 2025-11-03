@@ -23,7 +23,7 @@ export const ExpenseProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ Fetch all expenses
+  // Fetch all expenses
   const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
@@ -47,7 +47,7 @@ export const ExpenseProvider = ({ children }) => {
     }
   }, []);
 
-  // ✅ Fetch stats
+  // Fetch stats
   const fetchStats = useCallback(async () => {
     try {
       const data = await getExpenseStats();
@@ -58,7 +58,7 @@ export const ExpenseProvider = ({ children }) => {
     }
   }, []);
 
-  // ✅ Add expense (instant + real update)
+  // Add expense (instant + real update)
   const addExpense = async (expenseData) => {
     const now = new Date().toISOString();
     const tempId = `temp-${Date.now()}`;
@@ -96,7 +96,7 @@ export const ExpenseProvider = ({ children }) => {
     }
   };
 
-  // ✅ Update expense (instant + sync)
+  // Update expense (instant + sync)
   const updateExpense = async (id, expenseData) => {
     setExpenses((prev) =>
       prev.map((exp) => (exp._id === id ? { ...exp, ...expenseData } : exp))
@@ -115,7 +115,7 @@ export const ExpenseProvider = ({ children }) => {
     }
   };
 
-  // ✅ Delete expense (instant remove)
+  // Delete expense (instant remove)
   const removeExpense = async (id) => {
     const previous = expenses;
     setExpenses((prev) => prev.filter((exp) => exp._id !== id));
@@ -128,11 +128,6 @@ export const ExpenseProvider = ({ children }) => {
       setError(err);
     }
   };
-
-  useEffect(() => {
-    fetchExpenses();
-    fetchStats();
-  }, [fetchExpenses, fetchStats]);
 
   const value = {
     expenses,

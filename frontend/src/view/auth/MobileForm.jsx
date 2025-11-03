@@ -17,7 +17,7 @@ export default function MobileForm() {
   const { isLoading, setIsLoading, setStep, mobile, setMobile } = useAuth();
   const [validationError, setValidationError] = useState("");
 
-  // 🔹 Validate Indian mobile numbers
+  //  Validate Indian mobile numbers
   const validateMobile = (number) => {
     const regex = /^[6-9]\d{9}$/;
     if (!number) return "Please enter your mobile number.";
@@ -26,7 +26,7 @@ export default function MobileForm() {
     return "";
   };
 
-  // 🔹 Handle form submit
+  //  Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -40,12 +40,12 @@ export default function MobileForm() {
     setIsLoading(true);
 
     try {
-      // ✅ Await API response
+      // Await API response
       const res = await sendLoginOTP(mobile);
       // console.log("OTP Response:", res);
 
       if (res?.success) {
-        // ✅ OTP sent successfully → move to OTP step
+        // OTP sent successfully → move to OTP step
         setStep("otp");
       } else {
         setValidationError(res?.message || "Failed to send OTP.");
@@ -105,10 +105,10 @@ export default function MobileForm() {
           <Field>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={mobile.lenght < 6}
               className="w-full flex items-center justify-center gap-2"
             >
-              {isLoading && <Spinner className="size-4" />}
+              {isLoading && <Spinner />}
               {isLoading ? "Sending OTP..." : "Continue"}
             </Button>
           </Field>

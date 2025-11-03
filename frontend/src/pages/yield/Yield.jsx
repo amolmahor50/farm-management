@@ -1,20 +1,11 @@
 import { useEffect } from "react";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Icon } from "@/custom/Icon";
-import { TypographyH2, TypographyH4 } from "@/custom/Typography";
+import {
+  TypographyH2,
+  TypographyH4,
+  TypographySmall,
+} from "@/custom/Typography";
 import { SummaryCard } from "@/components/SummaryCard";
 import { useYields } from "@/contexts/YieldContext";
 import { QuickYield } from "./QuickYield";
@@ -22,35 +13,33 @@ import YieldsTable from "./YieldsTable";
 import { toastError } from "@/utils/toast";
 import { Loading } from "@/components/Loading";
 import { EmptyState } from "@/components/EmptyState";
+import { Card } from "@/components/ui/card";
 
 export const Yield = () => {
-  const { yields, summary, loading, fetchYields } = useYields();
+  const { yields, summary, loading, fetchYields, fetchCropSummary } =
+    useYields();
 
-  // Fetch yields & crop summary
+  console.log(yields);
+
+  // Initial fetch
   useEffect(() => {
-    const load = async () => {
-      try {
-        await fetchYields();
-      } catch {
-        toastError("Please refresh and try again.");
-      }
+    const init = async () => {
+      await Promise.all([fetchYields(), fetchCropSummary()]);
     };
-    load();
-  }, [fetchYields]);
+    init();
+  }, [fetchYields, fetchCropSummary]);
 
-  // Formatter for Rupees (1,32,350 style)
+  // Format numbers with commas
   const formatRupees = (num) =>
     new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(num);
 
   // Convert any yield’s quantity to kg
   const toKg = (quantity, unit) => {
     if (!quantity) return 0;
-
-    if (unit === "quintal") return quantity * 100; // 1 quintal = 100 kg
-    if (unit === "ton") return quantity * 1000; // 1 ton = 1000 kg
-    if (unit === "kg") return quantity; // already in kg
-
-    return 0; // only these 3 are allowed; anything else = 0
+    if (unit === "quintal") return quantity * 100;
+    if (unit === "ton") return quantity * 1000;
+    if (unit === "kg") return quantity;
+    return 0;
   };
 
   // Totals
@@ -65,6 +54,19 @@ export const Yield = () => {
 
   const totalHarvests = yields?.length || 0;
 
+  // Derived totals from summary (if available)
+  const totalExpenses =
+    summary?.reduce((sum, s) => sum + (Number(s.totalExpense) || 0), 0) || 0;
+
+  const netProfit =
+    summary?.reduce((sum, s) => sum + (Number(s.profit) || 0), 0) || 0;
+
+  const avgYieldPerCrop =
+    summary?.length > 0 ? totalQuantityKg / summary.length : 0;
+
+  const avgIncomePerHarvest =
+    totalHarvests > 0 ? totalIncome / totalHarvests : 0;
+
   // Convert kg → quintal or ton for display
   const formatQuantity = (kg) => {
     if (kg < 100) {
@@ -77,46 +79,6 @@ export const Yield = () => {
       return `${formatRupees(tons.toFixed(2))} ton`;
     }
   };
-
-  // Crop Summary (same as before)
-  const cropSummaryRaw =
-    summary && Array.isArray(summary) && summary.length > 0
-      ? summary
-      : yields?.reduce((acc, y) => {
-          const crop = y.cropName || "Unknown";
-          const income = Number(y.sellingPrice?.totalPrice) || 0;
-          const quantity = Number(toKg(y.quantity, y.unit)) || 0; // convert to kg
-          const existing = acc.find((c) => c.crop === crop);
-
-          if (existing) {
-            existing.income += income;
-            existing.quantity += quantity;
-            existing.count += 1;
-          } else {
-            acc.push({ crop, income, quantity, count: 1 });
-          }
-          return acc;
-        }, []) || [];
-
-  const cropSummary = cropSummaryRaw.map((item) => ({
-    crop: item.crop,
-    income: item.income || 0,
-    quantity: item.quantity || 0,
-    count: item.count || 1,
-    avgPrice: item.quantity > 0 ? item.income / item.quantity : 0,
-  }));
-
-  // Timeline data for line chart
-  const timelineData =
-    yields?.map((y) => ({
-      date: new Date(y.updatedAt || y.plantingDate).toLocaleDateString(
-        "en-IN",
-        { month: "short", day: "numeric" }
-      ),
-      crop: y.cropName,
-      quantity: Number(toKg(y.quantity, y.unit)) || 0,
-      income: Number(y.sellingPrice?.totalPrice) || 0,
-    })) || [];
 
   // Loading state
   if (loading) return <Loading />;
@@ -139,117 +101,95 @@ export const Yield = () => {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <SummaryCard
               title="Total Income"
               icon="IndianRupee"
               value={`₹${formatRupees(totalIncome)}`}
-              color="green"
+              color="#22c55e" // green
             />
             <SummaryCard
               title="Total Production"
               icon="Package"
               value={formatQuantity(totalQuantityKg)}
-              color="blue"
+              color="#3b82f6" // blue
             />
             <SummaryCard
               title="Total Harvests"
               icon="Leaf"
               value={totalHarvests}
-              color="orange"
+              color="#f59e0b" // amber
             />
-          </div>
-
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-4">
-              <TypographyH4>Production & Income by Crop</TypographyH4>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={cropSummary}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="crop"
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                    angle={-20}
-                    textAnchor="end"
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    orientation="left"
-                    stroke="#10b981"
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    stroke="#3b82f6"
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip
-                    formatter={(value) =>
-                      typeof value === "number" ? formatRupees(value) : value
-                    }
-                    contentStyle={{ fontSize: "12px" }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: "12px" }} />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="quantity"
-                    fill="#10b981"
-                    name="Quantity (kg)"
-                    barSize={25}
-                  />
-                  <Bar
-                    yAxisId="right"
-                    dataKey="income"
-                    fill="#3b82f6"
-                    name="Income (₹)"
-                    barSize={25}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card className="p-4">
-              <TypographyH4>Yield Timeline</TypographyH4>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={timelineData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value) =>
-                      typeof value === "number" ? formatRupees(value) : value
-                    }
-                    contentStyle={{ fontSize: "12px" }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: "12px" }} />
-                  <Line
-                    type="monotone"
-                    dataKey="quantity"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    name="Quantity (kg)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="income"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="Income (₹)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
+            <SummaryCard
+              title="Total Expenses"
+              icon="TrendingDown"
+              value={`₹${formatRupees(totalExpenses)}`}
+              color="#ef4444" // red
+            />
+            <SummaryCard
+              title="Net Profit"
+              icon="TrendingUp"
+              value={`₹${formatRupees(netProfit)}`}
+              color={netProfit >= 0 ? "#22c55e" : "#ef4444"} // green/red
+            />
+            <SummaryCard
+              title="Avg Yield per Crop"
+              icon="BarChart3"
+              value={`${formatRupees(avgYieldPerCrop.toFixed(2))} kg`}
+              color="#14b8a6" // teal
+            />
+            <SummaryCard
+              title="Avg Income per Harvest"
+              icon="Wallet"
+              value={`₹${formatRupees(avgIncomePerHarvest.toFixed(2))}`}
+              color="#8b5cf6" // violet
+            />
           </div>
 
           {/* Table */}
           <YieldsTable yields={yields} />
+
+          {/* Crop Summary Cards */}
+          {summary?.length > 0 && (
+            <div className="mt-6">
+              <TypographyH4 className="p-4 text-lg">Crop Summary</TypographyH4>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {summary.map((item) => {
+                  const isProfit = (item.profit || 0) >= 0;
+                  const profitColor = isProfit
+                    ? "text-green-600"
+                    : "text-red-600";
+
+                  return (
+                    <Card key={item._id} className="gap-1 p-3">
+                      <TypographySmall className="text-gray-600 capitalize">
+                        {item.cropName}
+                      </TypographySmall>
+
+                      <TypographyH4 className="font-semibold text-green-700">
+                        ₹{formatRupees(item.totalRevenue || 0)}
+                      </TypographyH4>
+
+                      <h1 className={`font-semibold ${profitColor}`}>
+                        {isProfit ? "Profit" : "Loss"} – ₹
+                        {formatRupees(Math.abs(item.profit || 0))}
+                      </h1>
+
+                      <p className="text-xs text-gray-500">
+                        Qty: {item.totalQuantity} | Expenses: ₹
+                        {formatRupees(item.totalExpense || 0)}
+                      </p>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <EmptyState
-          icon={<Icon name="Sprout" size={22} />} // You can change icon name if you prefer
+          icon={<Icon name="Sprout" size={22} />}
           title="No Yields Yet"
           description="You haven’t added any yield data yet. Start by adding your first yield record."
           button={

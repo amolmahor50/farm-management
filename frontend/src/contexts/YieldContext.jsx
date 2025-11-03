@@ -11,38 +11,48 @@ import {
   createYield,
   updateYield,
   deleteYield,
+  getCropSummary,
 } from "@/services/yieldService";
-import { toastSuccess } from "../utils/toast";
+import { toastSuccess, toastError } from "../utils/toast";
 
 const YieldContext = createContext();
 
 export const YieldProvider = ({ children }) => {
   const [yields, setYields] = useState([]);
+  const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // ✅ Fetch all yields
+  // Fetch all yields
   const fetchYields = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       const res = await getAllYields(params);
       setYields(res.data || res);
-      setError(null);
     } catch (err) {
       console.error("Error fetching yields:", err);
-      setError(err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // ✅ Create new yield
+  // Fetch crop summary
+  const fetchCropSummary = useCallback(async () => {
+    try {
+      const res = await getCropSummary();
+      setSummary(res.data || res);
+    } catch (err) {
+      console.error("Error fetching crop summary:", err);
+    }
+  }, []);
+
+  // Create new yield
   const addYield = async (data) => {
     try {
       const res = await createYield(data);
       const newYield = res.data || res;
       setYields((prev) => [newYield, ...prev]);
-      toastSuccess("Yield added..");
+      toastSuccess("Yield added successfully");
+      await fetchCropSummary(); //  refresh summary
       return newYield;
     } catch (err) {
       console.error("Error creating yield:", err);
@@ -50,7 +60,7 @@ export const YieldProvider = ({ children }) => {
     }
   };
 
-  // ✅ Update existing yield
+  // Update existing yield
   const editYield = async (id, data) => {
     try {
       const res = await updateYield(id, data);
@@ -58,7 +68,8 @@ export const YieldProvider = ({ children }) => {
       setYields((prev) =>
         prev.map((y) => (y._id === id ? { ...y, ...updated } : y))
       );
-      toastSuccess("Yield Updated..");
+      toastSuccess("Yield updated successfully");
+      await fetchCropSummary(); //  refresh summary
       return updated;
     } catch (err) {
       console.error("Error updating yield:", err);
@@ -66,19 +77,20 @@ export const YieldProvider = ({ children }) => {
     }
   };
 
-  // ✅ Delete yield
+  // Delete yield
   const removeYield = async (id) => {
     try {
       await deleteYield(id);
       setYields((prev) => prev.filter((y) => y._id !== id));
-      toastSuccess("Yield Deleted..");
+      toastSuccess("Yield deleted successfully");
+      await fetchCropSummary(); //  refresh summary
     } catch (err) {
       console.error("Error deleting yield:", err);
       throw err;
     }
   };
 
-  // ✅ Get single yield by ID
+  // Get single yield by ID
   const getYieldById = async (id) => {
     try {
       const res = await getYield(id);
@@ -89,16 +101,12 @@ export const YieldProvider = ({ children }) => {
     }
   };
 
-  // ✅ Initial fetch
-  useEffect(() => {
-    fetchYields();
-  }, [fetchYields]);
-
   const value = {
     yields,
+    summary,
     loading,
-    error,
     fetchYields,
+    fetchCropSummary,
     addYield,
     editYield,
     removeYield,

@@ -21,6 +21,6 @@ export const quickAddLoan = async (data) => {
 };
 
 export const getChartData = async (params) => {
-  const response = await API.get("/dashboard/chart-data", { params });
+  const response = await API.get("/dashboard/charts", { params });
   return response.data;
 };

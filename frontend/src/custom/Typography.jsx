@@ -73,6 +73,20 @@ export function TypographyH5({ children, className, ...props }) {
   );
 }
 
+export function TypographyH6({ children, className, ...props }) {
+  return (
+    <h6
+      className={cn(
+        "scroll-m-20 text-base font-semibold tracking-tight",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </h6>
+  );
+}
+
 // ---- Paragraph ----
 export function TypographyP({ children, className, ...props }) {
   return (

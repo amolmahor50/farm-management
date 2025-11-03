@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/custom/Icon";
@@ -9,12 +9,18 @@ import {
   TypographySmall,
 } from "@/custom/Typography";
 import { SummaryCard } from "@/components/SummaryCard";
-import { mockTasks } from "../../data/mockData";
 import { QuickTask } from "./QuickTask";
+import { TasksTable } from "./TasksTable";
+import { useTasks } from "@/contexts/TaskContext";
 
 export const Tasks = () => {
-  const [tasks] = useState(mockTasks);
+  const { fetchTasks, fetchUpcomingTasks, tasks } = useTasks();
   const [filterStatus, setFilterStatus] = useState("all");
+
+  useEffect(() => {
+    fetchTasks();
+    fetchUpcomingTasks();
+  }, []);
 
   const filteredTasks =
     filterStatus === "all"
@@ -96,6 +102,8 @@ export const Tasks = () => {
           color="red"
         />
       </div>
+
+      <TasksTable />
 
       {/* Task List */}
       <Card>

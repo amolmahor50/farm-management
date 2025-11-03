@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -27,311 +28,440 @@ import {
   buyerTypes,
 } from "@/constants/yieldConstants";
 
-export const QuickYield = ({ trigger, yieldData = null }) => {
-  const { addYield, editYield } = useYields();
+// ✅ Label Component
+const FieldLabel = ({ text, required }) => (
+  <Label className="flex items-center gap-1 font-medium">
+    {text.charAt(0).toUpperCase() + text.slice(1)}
+    {required ? (
+      <span className="text-red-500">*</span>
+    ) : (
+      <span className="text-gray-400 text-xs">(optional)</span>
+    )}
+  </Label>
+);
+
+export const QuickYield = ({ trigger, yieldData = null, view = false }) => {
+  const { addYield, editYield, loading } = useYields();
   const [open, setOpen] = useState(false);
   const today = new Date().toISOString().split("T")[0];
 
-  // ✅ Initial Form State
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     cropName: "",
     cropType: "",
+    variety: "",
     season: "",
     plantingDate: today,
+    harvestDate: "",
+    expectedHarvestDate: "",
     quantity: "",
     unit: "",
+    areaValue: "",
+    areaUnit: "",
+    qualityGrade: "",
     sellingPricePerUnit: "",
     sellingTotalPrice: "",
     buyerName: "",
     buyerPhone: "",
     buyerType: "",
+    totalExpense: "",
+    profitLoss: "",
+    status: "planted",
     notes: "",
+    rainfall: "",
+    minTemp: "",
+    maxTemp: "",
+    tags: "",
   });
-
-  // ✅ Error State
   const [errors, setErrors] = useState({});
 
-  // ✅ Load Existing Data (for Edit)
+  // ✅ Preload data
   useEffect(() => {
-    if (yieldData) {
-      setFormData({
-        cropName: yieldData.cropName || "",
-        cropType: yieldData.cropType || "",
-        season: yieldData.season || "",
-        plantingDate: yieldData.plantingDate
-          ? new Date(yieldData.plantingDate).toISOString().split("T")[0]
-          : today,
-        quantity: yieldData.quantity || "",
-        unit: yieldData.unit || "",
-        sellingPricePerUnit: yieldData.sellingPrice?.pricePerUnit || "",
-        sellingTotalPrice: yieldData.sellingPrice?.totalPrice || "",
-        buyerName: yieldData.buyer?.name || "",
-        buyerPhone: yieldData.buyer?.phone || "",
-        buyerType: yieldData.buyer?.type || "",
-        notes: yieldData.notes || "",
-      });
-    }
+    if (!yieldData) return;
+    setForm({
+      cropName: yieldData.cropName || "",
+      cropType: yieldData.cropType || "",
+      variety: yieldData.variety || "",
+      season: yieldData.season || "",
+      plantingDate: yieldData.plantingDate
+        ? new Date(yieldData.plantingDate).toISOString().split("T")[0]
+        : today,
+      harvestDate: yieldData.harvestDate
+        ? new Date(yieldData.harvestDate).toISOString().split("T")[0]
+        : "",
+      expectedHarvestDate: yieldData.expectedHarvestDate
+        ? new Date(yieldData.expectedHarvestDate).toISOString().split("T")[0]
+        : "",
+      quantity: yieldData.quantity || "",
+      unit: yieldData.unit || "",
+      areaValue: yieldData.areaUsed?.value || "",
+      areaUnit: yieldData.areaUsed?.unit || "",
+      qualityGrade: yieldData.qualityGrade || "",
+      sellingPricePerUnit: yieldData.sellingPrice?.pricePerUnit || "",
+      sellingTotalPrice: yieldData.sellingPrice?.totalPrice || "",
+      buyerName: yieldData.buyer?.name || "",
+      buyerPhone: yieldData.buyer?.phone || "",
+      buyerType: yieldData.buyer?.type || "",
+      totalExpense: yieldData.totalExpense || "",
+      profitLoss: yieldData.profitLoss || "",
+      status: yieldData.status || "planted",
+      notes: yieldData.notes || "",
+      rainfall: yieldData.weatherConditions?.rainfall || "",
+      minTemp: yieldData.weatherConditions?.temperature?.min || "",
+      maxTemp: yieldData.weatherConditions?.temperature?.max || "",
+      tags: yieldData.tags?.join(", ") || "",
+    });
   }, [yieldData, open]);
 
-  // ✅ Auto calculate total price
+  // ✅ Auto calculations
   useEffect(() => {
-    if (formData.quantity && formData.sellingPricePerUnit) {
-      const total =
-        Number(formData.quantity) * Number(formData.sellingPricePerUnit);
-      setFormData((prev) => ({
-        ...prev,
-        sellingTotalPrice: total.toFixed(2),
-      }));
-    }
-  }, [formData.quantity, formData.sellingPricePerUnit]);
+    const total =
+      (Number(form.quantity) || 0) * (Number(form.sellingPricePerUnit) || 0);
+    const profit = total - (Number(form.totalExpense) || 0);
+    setForm((prev) => ({
+      ...prev,
+      sellingTotalPrice: total.toFixed(2),
+      profitLoss: profit.toFixed(2),
+    }));
+  }, [form.quantity, form.sellingPricePerUnit, form.totalExpense]);
 
-  // ✅ Handle change
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: "" })); // clear error when typing
+  // ✅ Change Handler
+  // When `view` is true we must ignore all changes so inputs/selects remain read-only
+  const change = (f, v) => {
+    if (view) return; // ignore changes in view mode
+    setForm((p) => ({ ...p, [f]: v }));
+    setErrors((p) => ({ ...p, [f]: "" }));
   };
 
   // ✅ Validation
   const validate = () => {
-    const newErrors = {};
-    if (!formData.cropName.trim()) newErrors.cropName = "Crop name is required";
-    if (!formData.cropType) newErrors.cropType = "Select crop type";
-    if (!formData.season) newErrors.season = "Select season";
-    if (!formData.quantity) newErrors.quantity = "Enter quantity";
-    if (!formData.unit) newErrors.unit = "Select unit";
-    if (!formData.sellingPricePerUnit)
-      newErrors.sellingPricePerUnit = "Enter price per unit";
-    return newErrors;
+    const e = {};
+    if (!form.cropName.trim()) e.cropName = "Crop name is required";
+    if (!form.cropType) e.cropType = "Select crop type";
+    if (!form.season) e.season = "Select season";
+    if (!form.quantity) e.quantity = "Enter quantity";
+    if (!form.unit) e.unit = "Select unit";
+    if (!form.sellingPricePerUnit)
+      e.sellingPricePerUnit = "Enter price per unit";
+    return e;
   };
 
-  // ✅ Handle Submit
-  const handleSubmit = async (e) => {
+  // ✅ Submit Handler
+  const submit = async (e) => {
     e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length) {
-      setErrors(validationErrors);
-      return;
-    }
+    const v = validate();
+    if (Object.keys(v).length) return setErrors(v);
+
+    const payload = {
+      cropName: form.cropName.trim(),
+      cropType: form.cropType,
+      variety: form.variety || undefined,
+      season: form.season,
+      plantingDate: form.plantingDate,
+      harvestDate: form.harvestDate || null,
+      expectedHarvestDate: form.expectedHarvestDate || null,
+      quantity: Number(form.quantity),
+      unit: form.unit,
+      areaUsed: {
+        value: Number(form.areaValue) || 0,
+        unit: form.areaUnit || undefined,
+      },
+      qualityGrade: form.qualityGrade || undefined,
+      sellingPrice: {
+        pricePerUnit: Number(form.sellingPricePerUnit),
+        totalPrice: Number(form.sellingTotalPrice),
+        currency: "INR",
+      },
+      buyer: {
+        name: form.buyerName,
+        phone: form.buyerPhone,
+        type: form.buyerType,
+      },
+      totalExpense: Number(form.totalExpense) || 0,
+      profitLoss: Number(form.profitLoss) || 0,
+      status: form.status,
+      notes: form.notes,
+      weatherConditions: {
+        rainfall: Number(form.rainfall) || 0,
+        temperature: {
+          min: Number(form.minTemp) || 0,
+          max: Number(form.maxTemp) || 0,
+        },
+      },
+      tags: form.tags ? form.tags.split(",").map((t) => t.trim()) : [],
+    };
 
     try {
-      const payload = {
-        cropName: formData.cropName.trim(),
-        cropType: formData.cropType,
-        season: formData.season,
-        plantingDate: formData.plantingDate,
-        quantity: Number(formData.quantity),
-        unit: formData.unit,
-        sellingPrice: {
-          pricePerUnit: Number(formData.sellingPricePerUnit),
-          totalPrice: Number(formData.sellingTotalPrice),
-          currency: "INR",
-        },
-        buyer: {
-          name: formData.buyerName,
-          phone: formData.buyerPhone,
-          type: formData.buyerType,
-        },
-        notes: formData.notes,
-      };
-
-      if (yieldData?._id) {
-        await editYield(yieldData._id, payload);
-      } else {
-        await addYield(payload);
-      }
-
+      yieldData?._id
+        ? await editYield(yieldData._id, payload)
+        : await addYield(payload);
       setOpen(false);
-    } catch (error) {
-      console.error("Error saving yield:", error);
+    } catch (err) {
+      console.error("Error saving yield:", err);
     }
   };
 
-  // ✅ UI
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {trigger ? (
-        <DialogTrigger asChild>{trigger}</DialogTrigger>
-      ) : (
-        <DialogTrigger asChild>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        {trigger || (
           <Button>
-            <Icon name="Plus" /> Add Yield
+            <Icon name="Plus" /> {view ? "View Yield" : "Add Yield"}
           </Button>
-        </DialogTrigger>
-      )}
+        )}
+      </SheetTrigger>
 
-      <DialogContent className="max-h-[85vh] md:max-w-2xl overflow-y-auto rounded-2xl shadow-lg border border-gray-200">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-gray-800">
-            {yieldData ? "Edit Yield" : "Add New Yield"}
-          </DialogTitle>
-        </DialogHeader>
+      <SheetContent side="right" className="overflow-y-auto max-h-screen">
+        <SheetHeader>
+          <SheetTitle className="text-xl font-semibold text-gray-800">
+            {view ? "View Yield" : yieldData ? "Edit Yield" : "Add New Yield"}
+          </SheetTitle>
+        </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-3 text-gray-700">
-          {/* Crop Details */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Crop Name */}
-            <div className="space-y-2">
-              <Label>Crop Name *</Label>
+        <form onSubmit={submit} className="space-y-6 p-4 text-gray-700">
+          {/* 🌾 Crop Information */}
+          <div className="grid grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <FieldLabel text="Crop Name" required />
               <Input
-                placeholder="e.g., Wheat"
-                value={formData.cropName}
-                onChange={(e) => handleChange("cropName", e.target.value)}
+                value={form.cropName}
+                onChange={(e) => change("cropName", e.target.value)}
               />
-              {errors.cropName && (
-                <p className="text-red-500 text-sm">{errors.cropName}</p>
-              )}
             </div>
 
-            {/* Crop Type */}
-            <div className="space-y-2">
-              <Label>Crop Type *</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Crop Type" required />
               <Select
-                value={formData.cropType}
-                onValueChange={(v) => handleChange("cropType", v)}
+                value={form.cropType}
+                onValueChange={(v) => change("cropType", v)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select crop type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {cropTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {cropTypes.map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.cropType && (
-                <p className="text-red-500 text-sm">{errors.cropType}</p>
-              )}
             </div>
 
-            {/* Season */}
-            <div className="space-y-2">
-              <Label>Season *</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Variety" />
+              <Input
+                value={form.variety}
+                onChange={(e) => change("variety", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Season" required />
               <Select
-                value={formData.season}
-                onValueChange={(v) => handleChange("season", v)}
+                value={form.season}
+                onValueChange={(v) => change("season", v)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select season" />
                 </SelectTrigger>
                 <SelectContent>
-                  {seasons.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  {seasons.map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.season && (
-                <p className="text-red-500 text-sm">{errors.season}</p>
-              )}
             </div>
 
-            {/* Planting Date */}
-            <div className="space-y-2">
-              <Label>Planting Date (optional)</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Planting Date" required />
               <Input
                 type="date"
-                value={formData.plantingDate}
-                onChange={(e) => handleChange("plantingDate", e.target.value)}
+                value={form.plantingDate}
+                onChange={(e) => change("plantingDate", e.target.value)}
               />
             </div>
 
-            {/* Quantity */}
-            <div className="space-y-2">
-              <Label>Quantity *</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Expected Harvest Date" />
+              <Input
+                type="date"
+                value={form.expectedHarvestDate}
+                onChange={(e) => change("expectedHarvestDate", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Harvest Date" />
+              <Input
+                type="date"
+                value={form.harvestDate}
+                onChange={(e) => change("harvestDate", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Status" />
+              <Select
+                value={form.status}
+                onValueChange={(v) => change("status", v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["planted", "growing", "harvested", "sold"].map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* 📦 Quantity, Area & Quality */}
+          <div className="grid grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <FieldLabel text="Quantity" required />
               <Input
                 type="number"
-                placeholder="e.g., 500"
-                value={formData.quantity}
-                onChange={(e) => handleChange("quantity", e.target.value)}
+                value={form.quantity}
+                onChange={(e) => change("quantity", e.target.value)}
               />
-              {errors.quantity && (
-                <p className="text-red-500 text-sm">{errors.quantity}</p>
-              )}
             </div>
 
-            {/* Unit */}
-            <div className="space-y-2">
-              <Label>Unit *</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Unit" required />
               <Select
-                value={formData.unit}
-                onValueChange={(v) => handleChange("unit", v)}
+                value={form.unit}
+                onValueChange={(v) => change("unit", v)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
-                  {units.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u}
+                  {units.map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.unit && (
-                <p className="text-red-500 text-sm">{errors.unit}</p>
-              )}
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Area Value" />
+              <Input
+                type="number"
+                value={form.areaValue}
+                onChange={(e) => change("areaValue", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Area Unit" />
+              <Select
+                value={form.areaUnit}
+                onValueChange={(v) => change("areaUnit", v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select area unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["acre", "hectare", "bigha", "guntha"].map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Quality Grade" />
+              <Select
+                value={form.qualityGrade}
+                onValueChange={(v) => change("qualityGrade", v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select quality grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["A", "B", "C", "D"].map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Price & Buyer Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Price per Unit (₹) *</Label>
+          {/* 💰 Pricing */}
+          <div className="grid grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <FieldLabel text="Price per Unit" required />
               <Input
                 type="number"
-                value={formData.sellingPricePerUnit}
-                onChange={(e) =>
-                  handleChange("sellingPricePerUnit", e.target.value)
-                }
+                value={form.sellingPricePerUnit}
+                onChange={(e) => change("sellingPricePerUnit", e.target.value)}
               />
-              {errors.sellingPricePerUnit && (
-                <p className="text-red-500 text-sm">
-                  {errors.sellingPricePerUnit}
-                </p>
-              )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Total Price (₹)</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Total Price" />
+              <Input type="number" readOnly value={form.sellingTotalPrice} />
+            </div>
+
+            <div className="space-y-1">
+              <FieldLabel text="Total Expense" />
               <Input
                 type="number"
-                value={formData.sellingTotalPrice}
-                readOnly
+                value={form.totalExpense}
+                onChange={(e) => change("totalExpense", e.target.value)}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Buyer Name (optional)</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Profit / Loss" />
+              <Input type="number" readOnly value={form.profitLoss} />
+            </div>
+          </div>
+
+          {/* 👤 Buyer Details */}
+          <div className="grid grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <FieldLabel text="Buyer Name" />
               <Input
-                value={formData.buyerName}
-                onChange={(e) => handleChange("buyerName", e.target.value)}
+                value={form.buyerName}
+                onChange={(e) => change("buyerName", e.target.value)}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Buyer Phone (optional)</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Buyer Phone" />
               <Input
-                value={formData.buyerPhone}
-                onChange={(e) => handleChange("buyerPhone", e.target.value)}
+                type="tel"
+                value={form.buyerPhone}
+                onChange={(e) => change("buyerPhone", e.target.value)}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Buyer Type (optional)</Label>
+            <div className="space-y-1">
+              <FieldLabel text="Buyer Type" />
               <Select
-                value={formData.buyerType}
-                onValueChange={(v) => handleChange("buyerType", v)}
+                value={form.buyerType}
+                onValueChange={(v) => change("buyerType", v)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select buyer type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {buyerTypes.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
+                  {buyerTypes.map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -339,31 +469,64 @@ export const QuickYield = ({ trigger, yieldData = null }) => {
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label>Notes (optional)</Label>
-            <Textarea
-              placeholder="Add any remarks..."
-              value={formData.notes}
-              onChange={(e) => handleChange("notes", e.target.value)}
+          {/* 🌦 Weather Conditions */}
+          <div className="grid grid-cols-3 gap-5">
+            <div className="space-y-1">
+              <FieldLabel text="Rainfall (mm)" />
+              <Input
+                type="number"
+                value={form.rainfall}
+                onChange={(e) => change("rainfall", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <FieldLabel text="Min Temp (°C)" />
+              <Input
+                type="number"
+                value={form.minTemp}
+                onChange={(e) => change("minTemp", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <FieldLabel text="Max Temp (°C)" />
+              <Input
+                type="number"
+                value={form.maxTemp}
+                onChange={(e) => change("maxTemp", e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* 🏷 Tags & Notes */}
+          <div className="space-y-1">
+            <FieldLabel text="Tags" />
+            <Input
+              placeholder="organic, export, premium"
+              value={form.tags}
+              onChange={(e) => change("tags", e.target.value)}
             />
           </div>
 
-          {/* Footer */}
-          <DialogFooter className="pt-5 flex justify-end gap-3">
-            <Button
-              variant="destructive"
-              type="button"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit">
-              {yieldData ? "Update Yield" : "Add Yield"}
-            </Button>
-          </DialogFooter>
+          <div className="space-y-1">
+            <FieldLabel text="Notes" />
+            <Textarea
+              placeholder="Add remarks..."
+              value={form.notes}
+              onChange={(e) => change("notes", e.target.value)}
+            />
+          </div>
+
+          {/* Submit */}
+          {!view && (
+            <SheetFooter className="flex justify-end">
+              <Button type="submit">
+                {loading && <Spinner />}
+                {yieldData ? "Update Yield" : "Add Yield"}
+              </Button>
+            </SheetFooter>
+          )}
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };

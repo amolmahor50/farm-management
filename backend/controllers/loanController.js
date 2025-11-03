@@ -1,5 +1,5 @@
-const Loan = require('../models/Loan');
-const Notification = require('../models/Notification');
+const Loan = require("../models/Loan");
+const Notification = require("../models/Notification");
 
 exports.getAllLoans = async (req, res, next) => {
   try {
@@ -20,7 +20,7 @@ exports.getAllLoans = async (req, res, next) => {
       success: true,
       data: loans,
       totalPages: Math.ceil(count / limit),
-      currentPage: page
+      currentPage: page,
     });
   } catch (error) {
     next(error);
@@ -31,19 +31,19 @@ exports.getLoan = async (req, res, next) => {
   try {
     const loan = await Loan.findOne({
       _id: req.params.id,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!loan) {
       return res.status(404).json({
         success: false,
-        message: 'Loan not found'
+        message: "Loan not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: loan
+      data: loan,
     });
   } catch (error) {
     next(error);
@@ -54,13 +54,13 @@ exports.createLoan = async (req, res, next) => {
   try {
     const loan = await Loan.create({
       user: req.user.id,
-      ...req.body
+      ...req.body,
     });
 
     res.status(201).json({
       success: true,
-      message: 'Loan created successfully',
-      data: loan
+      message: "Loan created successfully",
+      data: loan,
     });
   } catch (error) {
     next(error);
@@ -78,14 +78,14 @@ exports.updateLoan = async (req, res, next) => {
     if (!loan) {
       return res.status(404).json({
         success: false,
-        message: 'Loan not found'
+        message: "Loan not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Loan updated successfully',
-      data: loan
+      message: "Loan updated successfully",
+      data: loan,
     });
   } catch (error) {
     next(error);
@@ -96,19 +96,19 @@ exports.deleteLoan = async (req, res, next) => {
   try {
     const loan = await Loan.findOneAndDelete({
       _id: req.params.id,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!loan) {
       return res.status(404).json({
         success: false,
-        message: 'Loan not found'
+        message: "Loan not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Loan deleted successfully'
+      message: "Loan deleted successfully",
     });
   } catch (error) {
     next(error);
@@ -121,22 +121,24 @@ exports.recordEMIPayment = async (req, res, next) => {
 
     const loan = await Loan.findOne({
       _id: req.params.id,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!loan) {
       return res.status(404).json({
         success: false,
-        message: 'Loan not found'
+        message: "Loan not found",
       });
     }
 
-    const emiIndex = loan.emiSchedule.findIndex(emi => emi.emiNumber === emiNumber);
+    const emiIndex = loan.emiSchedule.findIndex(
+      (emi) => emi.emiNumber === emiNumber
+    );
 
     if (emiIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: 'EMI not found'
+        message: "EMI not found",
       });
     }
 
@@ -148,15 +150,15 @@ exports.recordEMIPayment = async (req, res, next) => {
     loan.remainingAmount = loan.totalAmount - loan.totalPaid;
 
     if (loan.remainingAmount <= 0) {
-      loan.status = 'completed';
+      loan.status = "completed";
     }
 
     await loan.save();
 
     res.status(200).json({
       success: true,
-      message: 'EMI payment recorded successfully',
-      data: loan
+      message: "EMI payment recorded successfully",
+      data: loan,
     });
   } catch (error) {
     next(error);
@@ -167,21 +169,21 @@ exports.getUpcomingEMIs = async (req, res, next) => {
   try {
     const loans = await Loan.find({
       user: req.user.id,
-      status: 'active'
+      status: "active",
     });
 
     const upcomingEMIs = [];
 
-    loans.forEach(loan => {
-      const unpaidEMIs = loan.emiSchedule.filter(emi => !emi.isPaid);
-      unpaidEMIs.forEach(emi => {
+    loans.forEach((loan) => {
+      const unpaidEMIs = loan.emiSchedule.filter((emi) => !emi.isPaid);
+      unpaidEMIs.forEach((emi) => {
         upcomingEMIs.push({
           loanId: loan._id,
           loanType: loan.loanType,
           lender: loan.lender.name,
           emiNumber: emi.emiNumber,
           amount: emi.amount,
-          dueDate: emi.dueDate
+          dueDate: emi.dueDate,
         });
       });
     });
@@ -190,7 +192,7 @@ exports.getUpcomingEMIs = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: upcomingEMIs
+      data: upcomingEMIs,
     });
   } catch (error) {
     next(error);
