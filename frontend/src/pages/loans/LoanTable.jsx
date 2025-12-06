@@ -19,7 +19,8 @@ import {
 } from "@/custom/Typography";
 import { Progress } from "@/components/ui/progress";
 import { QuickLoan } from "./QuickLoan";
-import { useDeleteLoan } from "@/hooks/useLoans";
+import { useLoans, useDeleteLoan, useUpdateLoan } from "@/hooks/useLoans";
+import { Loading } from "@/components/Loading";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,12 +68,21 @@ import { toastError } from "../../utils/toast";
    Loan Table Component
 ================================= */
 export default function LoanTable() {
-  const { removeLoan, fetchLoans, editLoan, loans } = useLoan();
+  const { data: loansData = [], isLoading } = useLoans();
+  const loansArr = Array.isArray(loansData)
+    ? loansData
+    : Array.isArray(loansData?.data)
+    ? loansData.data
+    : [];
+  const deleteMutation = useDeleteLoan();
+  const updateMutation = useUpdateLoan();
   const [loadingId, setLoadingId] = useState(null);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  if (isLoading) return <Loading />;
 
   /* Pagination state */
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,8 +97,7 @@ export default function LoanTable() {
   const handleDelete = async (id) => {
     setLoadingId(id);
     try {
-      await removeLoan(id);
-      await fetchLoans();
+      await deleteMutation.mutateAsync(id);
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
@@ -136,17 +145,19 @@ export default function LoanTable() {
         0
       );
       const status = newRemaining === 0 ? "completed" : "active";
+      const paidEmis = selectedLoan.emiAmount
+        ? Math.floor(newPaid / selectedLoan.emiAmount)
+        : 0;
 
-      await editLoan(selectedLoan._id, {
-        ...selectedLoan,
+      await updateMutation.mutateAsync({
+        id: selectedLoan._id,
         totalPaid: newPaid,
         remainingAmount: newRemaining,
+        paidEmis,
         status,
       });
 
-      await fetchLoans();
       setPayDialogOpen(false);
-      setPaymentError(""); // Clear error on success
     } catch (err) {
       console.error("Pay EMI failed:", err);
     }
@@ -156,13 +167,14 @@ export default function LoanTable() {
   const handlePayFull = async (loan) => {
     setLoadingId(loan._id);
     try {
-      await editLoan(loan._id, {
-        ...loan,
+      const totalEmis = loan.tenure?.months || 0;
+      await updateMutation.mutateAsync({
+        id: loan._id,
         totalPaid: loan.totalAmount || loan.principal,
         remainingAmount: 0,
+        paidEmis: totalEmis,
         status: "completed",
       });
-      await fetchLoans();
     } catch (err) {
       console.error("Full payment failed:", err);
     } finally {
@@ -172,7 +184,7 @@ export default function LoanTable() {
 
   /** 🔍 Filter + Sort Loans */
   const filteredLoans = useMemo(() => {
-    let filtered = loans?.filter((loan) => {
+    let filtered = loansArr?.filter((loan) => {
       const lender = loan?.lender?.name?.toLowerCase() || "";
       const type = loan?.loanType?.toLowerCase() || "";
       const status = loan?.status?.toLowerCase() || "";
@@ -200,7 +212,7 @@ export default function LoanTable() {
     });
 
     return filtered || [];
-  }, [loans, search, sortKey, sortOrder, statusFilter]);
+  }, [loansArr, search, sortKey, sortOrder, statusFilter]);
 
   /* Pagination Logic */
   const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);

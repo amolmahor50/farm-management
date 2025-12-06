@@ -125,10 +125,12 @@ export const QuickLoan = ({ loan, trigger, view = false }) => {
         notes: formData.notes,
       };
 
-      if (loan) await editLoan(loan._id, payload);
-      else await addLoan(payload);
+      if (loan) {
+        await updateLoanMutation.mutateAsync({ id: loan._id, ...payload });
+      } else {
+        await createLoanMutation.mutateAsync(payload);
+      }
 
-      await fetchLoans();
       setOpen(false);
       setFormData(initialFormState);
     } catch (err) {

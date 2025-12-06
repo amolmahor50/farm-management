@@ -15,6 +15,12 @@ import { QuickLoan } from "./QuickLoan";
 import LoanTable from "./LoanTable";
 import { EmptyState } from "@/components/EmptyState";
 import { loanTypes, lenderTypes } from "@/constants/loanConstants";
+import {
+  LoanTypeChart,
+  LenderTypeChart,
+  EMIProgressChart,
+  StatusDistributionChart,
+} from "./LoansCharts";
 
 export const Loans = () => {
   const { data: loans = [], isLoading } = useLoans();
@@ -182,6 +188,20 @@ export const Loans = () => {
           </div>
 
           <LoanTable />
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <LoanTypeChart data={loansByType} />
+            <LenderTypeChart data={loansByLenderType} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <EMIProgressChart loans={normalizedLoans} />
+            <StatusDistributionChart
+              activeCount={activeLoans.length}
+              completedCount={completedLoans.length}
+            />
+          </div>
 
           {/* EMI Reminders */}
           <Card className="bg-orange-50 border border-orange-200 p-6">
