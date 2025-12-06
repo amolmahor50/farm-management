@@ -18,34 +18,69 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Edit, Trash2 } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
-import { dataStore } from "../../utils/dataStore";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { useReplyToPost } from "@/hooks/useForum";
 
 export const CommentsDrawer = ({ post, open, onClose, onCommentsUpdated }) => {
   const { user } = useAuth();
   const [commentText, setCommentText] = useState("");
   const [editCommentData, setEditCommentData] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const replyMutation = useReplyToPost();
 
   const handleAddComment = () => {
     if (!commentText.trim()) return;
-    dataStore.addComment(post.id, {
-      userId: user?.id || "1",
-      userName: user?.name || "Anonymous",
-      content: commentText,
-    });
-    setCommentText("");
-    onCommentsUpdated();
+    replyMutation.mutate(
+      {
+        id: post.id,
+        userId: user?.id || "1",
+        userName: user?.name || "Anonymous",
+        content: commentText,
+      },
+      {
+        onSuccess: () => {
+          setCommentText("");
+          onCommentsUpdated && onCommentsUpdated();
+        },
+      }
+    );
   };
 
-  const handleEditComment = (postId, commentId, content) => {
-    dataStore.editComment(postId, commentId, content);
-    setEditCommentData(null);
-    onCommentsUpdated();
+  const handleEditComment = () => {
+    if (!editCommentData?.content?.trim()) return;
+    replyMutation.mutate(
+      {
+        id: post.id,
+        commentId: editCommentData.commentId,
+        userId: user?.id || "1",
+        userName: user?.name || "Anonymous",
+        content: editCommentData.content,
+        edit: true,
+      },
+      {
+        onSuccess: () => {
+          setEditCommentData(null);
+          setEditingId(null);
+          onCommentsUpdated && onCommentsUpdated();
+        },
+      }
+    );
   };
 
-  const handleDeleteComment = (postId, commentId) => {
-    dataStore.deleteComment(postId, commentId);
-    onCommentsUpdated();
+  const handleDeleteComment = (commentId) => {
+    replyMutation.mutate(
+      {
+        id: post.id,
+        commentId,
+        delete: true,
+      },
+      {
+        onSuccess: () => {
+          onCommentsUpdated && onCommentsUpdated();
+        },
+      }
+    );
   };
 
   return (
@@ -57,67 +92,97 @@ export const CommentsDrawer = ({ post, open, onClose, onCommentsUpdated }) => {
 
         {/* Scrollable comments list */}
         <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-          {post?.comments.map((comment) => (
-            <Card key={comment.id} className="p-3 gap-1 bg-secondary">
-              <TypographySmall>{comment.userName}</TypographySmall>
-              <TypographyMuted>{comment.content}</TypographyMuted>
+          {replyMutation.isLoading ? (
+            <Skeleton className="w-full h-16" />
+          ) : post?.comments?.length ? (
+            post.comments.map((comment) => (
+              <Card key={comment.id} className="p-3 gap-1 bg-secondary">
+                <TypographySmall>{comment.userName}</TypographySmall>
+                <TypographyMuted>{comment.content}</TypographyMuted>
 
-              {comment.userId === user?.id && (
-                <div className="flex gap-2 mt-1">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md w-full p-6">
-                      <DialogHeader>
-                        <DialogTitle>Edit Comment</DialogTitle>
-                      </DialogHeader>
-                      <Textarea
-                        value={editCommentData?.content || comment.content}
-                        onChange={(e) =>
-                          setEditCommentData({
-                            postId: post.id,
-                            commentId: comment.id,
-                            content: e.target.value,
-                          })
-                        }
-                        rows={4}
-                      />
-                      <DialogFooter>
+                {comment.userId === user?.id && (
+                  <div className="flex gap-2 mt-1">
+                    <Dialog
+                      open={editingId === comment.id}
+                      onOpenChange={() =>
+                        setEditingId(
+                          editingId === comment.id ? null : comment.id
+                        )
+                      }
+                    >
+                      <DialogTrigger asChild>
                         <Button
-                          onClick={() => setEditCommentData(null)}
-                          variant="destructive"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditCommentData({
+                              postId: post.id,
+                              commentId: comment.id,
+                              content: comment.content,
+                            });
+                            setEditingId(comment.id);
+                          }}
                         >
-                          Cancel
+                          <Edit className="w-4 h-4" />
                         </Button>
-                        <Button
-                          onClick={() =>
-                            handleEditComment(
-                              editCommentData.postId,
-                              editCommentData.commentId,
-                              editCommentData.content
-                            )
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md w-full p-6">
+                        <DialogHeader>
+                          <DialogTitle>Edit Comment</DialogTitle>
+                        </DialogHeader>
+                        <Textarea
+                          value={editCommentData?.content || ""}
+                          onChange={(e) =>
+                            setEditCommentData({
+                              ...editCommentData,
+                              content: e.target.value,
+                            })
                           }
-                        >
-                          Save
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                          rows={4}
+                        />
+                        <DialogFooter>
+                          <Button
+                            onClick={() => {
+                              setEditCommentData(null);
+                              setEditingId(null);
+                            }}
+                            variant="destructive"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleEditComment}
+                            disabled={replyMutation.isLoading}
+                          >
+                            {replyMutation.isLoading ? (
+                              <Skeleton className="w-16 h-6" />
+                            ) : (
+                              "Save"
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeleteComment(post.id, comment.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </Card>
-          ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteComment(comment.id)}
+                      disabled={replyMutation.isLoading}
+                    >
+                      {replyMutation.isLoading ? (
+                        <Skeleton className="w-8 h-6" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            ))
+          ) : (
+            <TypographyMuted>No comments yet.</TypographyMuted>
+          )}
         </div>
 
         {/* Fixed input area */}
@@ -132,7 +197,16 @@ export const CommentsDrawer = ({ post, open, onClose, onCommentsUpdated }) => {
             <Button variant="destructive" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleAddComment}>Comment</Button>
+            <Button
+              onClick={handleAddComment}
+              disabled={replyMutation.isLoading}
+            >
+              {replyMutation.isLoading ? (
+                <Skeleton className="w-16 h-6" />
+              ) : (
+                "Comment"
+              )}
+            </Button>
           </div>
         </div>
       </DrawerContent>

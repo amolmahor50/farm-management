@@ -1,19 +1,18 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const ProtectedRoute = ({ children }) => {
-  const { user, setStep } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
 
-  // No user object → redirect to login page
-  if (!user) {
-    return <Navigate to="/" state={{ from: location }} replace />;
+  // Still loading → show nothing (App.jsx handles loading state)
+  if (isLoading) {
+    return null;
   }
 
-  // If user exists but missing details (name/email)
-  if (!user.name || !user.email) {
-    return setStep("userDetails");
-    // return <Navigate to="/user-details" replace />;
+  // No user or not authenticated → redirect to login page
+  if (!user || !isAuthenticated) {
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   // User is valid → show the requested protected page

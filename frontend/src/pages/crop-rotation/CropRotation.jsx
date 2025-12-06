@@ -1,13 +1,27 @@
-import { useEffect, useState } from "react";
 import { Repeat } from "lucide-react";
-import { dataStore } from "../../utils/dataStore";
+import { useAIData } from "@/hooks/useAI";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/custom/Icon";
+import {
+  TypographyH2,
+  TypographyMuted,
+  TypographySmall,
+} from "@/custom/Typography";
+import { Card } from "@/components/ui/card";
+import { Loading } from "@/components/Loading";
+import { EmptyState } from "@/components/EmptyState";
 
 export const CropRotation = () => {
-  const [rotations, setRotations] = useState([]);
+  const { data: aiData = [], isLoading } = useAIData();
+  const aiDataArr = Array.isArray(aiData)
+    ? aiData
+    : Array.isArray(aiData?.data)
+    ? aiData.data
+    : [];
+  const rotationData =
+    aiDataArr.filter((item) => item.type === "rotation") || [];
 
-  useEffect(() => {
-    setRotations(dataStore.getCropRotations());
-  }, []);
+  if (isLoading) return <Loading />;
 
   return (
     <div className="space-y-6">
@@ -18,7 +32,7 @@ export const CropRotation = () => {
 
       {/* Crop Rotation Cards */}
       <div className="grid gap-6">
-        {rotations.map((rotation) => (
+        {rotationData.map((rotation) => (
           <div key={rotation.id} className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center gap-3 mb-4">
               <Repeat className="w-6 h-6 text-green-600" />

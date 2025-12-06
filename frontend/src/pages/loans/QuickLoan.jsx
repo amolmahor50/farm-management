@@ -20,7 +20,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { useLoan } from "@/contexts/LoanContext";
+import { useCreateLoan, useUpdateLoan } from "@/hooks/useLoans";
 import {
   loanTypes,
   lenderTypes,
@@ -30,7 +30,8 @@ import {
 
 export const QuickLoan = ({ loan, trigger, view = false }) => {
   const today = new Date().toISOString().split("T")[0];
-  const { addLoan, editLoan, fetchLoans } = useLoan();
+  const createLoanMutation = useCreateLoan();
+  const updateLoanMutation = useUpdateLoan();
 
   const initialFormState = {
     lenderName: "",

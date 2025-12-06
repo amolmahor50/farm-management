@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/custom/Icon";
 import { TypographyH4 } from "@/custom/Typography";
 import { QuickExpense } from "./QuickExpense";
-import { useExpenses } from "@/contexts/ExpenseContext";
+import { useExpenses, useDeleteExpense } from "@/hooks/useExpenses";
 import { capitalize } from "@/utils/capatalize";
 import { CATEGORIES, PAYMENT_METHODS } from "@/constants/expensesConstants";
 import {
@@ -71,7 +71,13 @@ const applyFilters = (expenses, filters) => {
 };
 
 export default function ExpensesTable() {
-  const { expenses = [], removeExpense } = useExpenses();
+  const { data: expenses = [] } = useExpenses();
+  const expensesArr = Array.isArray(expenses)
+    ? expenses
+    : Array.isArray(expenses?.data)
+    ? expenses.data
+    : [];
+  const deleteMutation = useDeleteExpense();
 
   const [filters, setFilters] = useState({
     category: "all",
@@ -88,8 +94,8 @@ export default function ExpensesTable() {
 
   //  Apply filters
   const filteredExpenses = useMemo(
-    () => applyFilters(expenses, filters),
-    [expenses, filters]
+    () => applyFilters(expensesArr, filters),
+    [expensesArr, filters]
   );
 
   const totalPages = Math.ceil(filteredExpenses.length / perPage);
@@ -103,7 +109,11 @@ export default function ExpensesTable() {
 
   //  Delete Expense
   const handleDelete = async (id) => {
-    await removeExpense(id);
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (err) {
+      console.error("Failed to delete expense:", err);
+    }
   };
 
   return (

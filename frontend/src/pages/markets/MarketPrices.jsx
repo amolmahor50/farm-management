@@ -1,7 +1,20 @@
-import { TrendingUp, TrendingDown, DollarSign, MapPin } from "lucide-react";
-import { mockMarketPrices } from "../../data/mockData";
+import { TrendingUp, TrendingDown, MapPin, DollarSign } from "lucide-react";
+import { useMarket } from "@/hooks/useMarket";
+import { TypographyH2, TypographyMuted } from "@/custom/Typography";
+import { Loading } from "@/components/Loading";
+import { EmptyState } from "@/components/EmptyState";
+import { Icon } from "@/custom/Icon";
 
 export const MarketPrices = () => {
+  const { data: marketPrices = [], isLoading } = useMarket();
+  const marketPricesArr = Array.isArray(marketPrices)
+    ? marketPrices
+    : Array.isArray(marketPrices?.data)
+    ? marketPrices.data
+    : [];
+
+  if (isLoading) return <Loading />;
+
   return (
     <div className="space-y-6">
       <div>
@@ -10,7 +23,7 @@ export const MarketPrices = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockMarketPrices.map((price, index) => {
+        {marketPricesArr.map((price, index) => {
           const isUp = index % 2 === 0;
           const change = (Math.random() * 10 - 5).toFixed(2);
 
@@ -124,7 +137,7 @@ export const MarketPrices = () => {
               </tr>
             </thead>
             <tbody>
-              {mockMarketPrices.map((price) => {
+              {marketPricesArr.map((price) => {
                 const lastWeek = price.price - Math.floor(Math.random() * 200);
                 const lastMonth = price.price - Math.floor(Math.random() * 400);
                 const change = (

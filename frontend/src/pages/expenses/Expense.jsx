@@ -4,7 +4,7 @@ import { Icon } from "@/custom/Icon";
 import { TypographyH2 } from "@/custom/Typography";
 import { QuickExpense } from "./QuickExpense";
 import ExpensesTable from "./ExpensesTable";
-import { useExpenses } from "@/contexts/ExpenseContext";
+import { useExpenses } from "@/hooks/useExpenses";
 import { CATEGORIES, CATEGORY_COLORS } from "@/constants/expensesConstants";
 import { Loading } from "@/components/Loading";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,12 +12,7 @@ import { capitalize } from "@/utils/capatalize";
 import { SummaryCard } from "@/components/SummaryCard";
 
 export const Expense = () => {
-  const { expenses, loading, fetchExpenses } = useExpenses();
-
-  useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
-
+  const { data: expenses = [], isLoading: loading } = useExpenses();
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
 
   // Compute category-wise total expenses

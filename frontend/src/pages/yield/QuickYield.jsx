@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useYields } from "@/contexts/YieldContext";
+import { useCreateYield, useUpdateYield } from "@/hooks/useYields";
 import { Icon } from "@/custom/Icon";
 import {
   cropTypes,
@@ -41,7 +41,10 @@ const FieldLabel = ({ text, required }) => (
 );
 
 export const QuickYield = ({ trigger, yieldData = null, view = false }) => {
-  const { addYield, editYield, loading } = useYields();
+  const createYieldMutation = useCreateYield();
+  const updateYieldMutation = useUpdateYield();
+  const isSubmitting =
+    createYieldMutation.isLoading || updateYieldMutation.isLoading;
   const [open, setOpen] = useState(false);
   const today = new Date().toISOString().split("T")[0];
 
@@ -191,9 +194,14 @@ export const QuickYield = ({ trigger, yieldData = null, view = false }) => {
     };
 
     try {
-      yieldData?._id
-        ? await editYield(yieldData._id, payload)
-        : await addYield(payload);
+      if (yieldData?._id) {
+        await updateYieldMutation.mutateAsync({
+          id: yieldData._id,
+          ...payload,
+        });
+      } else {
+        await createYieldMutation.mutateAsync(payload);
+      }
       setOpen(false);
     } catch (err) {
       console.error("Error saving yield:", err);
@@ -519,8 +527,8 @@ export const QuickYield = ({ trigger, yieldData = null, view = false }) => {
           {/* Submit */}
           {!view && (
             <SheetFooter className="flex justify-end">
-              <Button type="submit">
-                {loading && <Spinner />}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Spinner />}
                 {yieldData ? "Update Yield" : "Add Yield"}
               </Button>
             </SheetFooter>

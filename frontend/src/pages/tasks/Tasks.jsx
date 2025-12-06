@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/custom/Icon";
@@ -11,32 +11,38 @@ import {
 import { SummaryCard } from "@/components/SummaryCard";
 import { QuickTask } from "./QuickTask";
 import { TasksTable } from "./TasksTable";
-import { useTasks } from "@/contexts/TaskContext";
+import { useTasks, useCompleteTask } from "@/hooks/useTasks";
+import { Loading } from "@/components/Loading";
+import { EmptyState } from "@/components/EmptyState";
 
 export const Tasks = () => {
-  const { fetchTasks, fetchUpcomingTasks, tasks } = useTasks();
+  const { data: tasks = [], isLoading } = useTasks();
+  const completeTaskMutation = useCompleteTask();
   const [filterStatus, setFilterStatus] = useState("all");
 
-  useEffect(() => {
-    fetchTasks();
-    fetchUpcomingTasks();
-  }, []);
+  const tasksArr = Array.isArray(tasks)
+    ? tasks
+    : Array.isArray(tasks?.data)
+    ? tasks.data
+    : [];
+
+  if (isLoading) return <Loading />;
 
   const filteredTasks =
     filterStatus === "all"
-      ? tasks
-      : tasks.filter((t) => t.status === filterStatus);
+      ? tasksArr
+      : tasksArr.filter((t) => t.status === filterStatus);
 
-  const pendingTasks = tasks.filter((t) => t.status === "Pending");
-  const completedTasks = tasks.filter((t) => t.status === "Completed");
-  const overdueTasks = tasks.filter((t) => t.status === "Overdue");
+  const pendingTasks = tasksArr.filter((t) => t.status === "Pending");
+  const completedTasks = tasksArr.filter((t) => t.status === "Completed");
+  const overdueTasks = tasksArr.filter((t) => t.status === "Overdue");
 
-  const upcomingTasks = tasks
+  const upcomingTasks = tasksArr
     .filter((t) => t.status === "Pending")
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 5);
 
-  const tasksByCategory = tasks.reduce((acc, task) => {
+  const tasksByCategory = tasksArr.reduce((acc, task) => {
     acc[task.category] = (acc[task.category] || 0) + 1;
     return acc;
   }, {});

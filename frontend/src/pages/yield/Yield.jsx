@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/custom/Icon";
 import {
@@ -7,27 +7,21 @@ import {
   TypographySmall,
 } from "@/custom/Typography";
 import { SummaryCard } from "@/components/SummaryCard";
-import { useYields } from "@/contexts/YieldContext";
+import { useYields, useDeleteYield } from "@/hooks/useYields";
 import { QuickYield } from "./QuickYield";
 import YieldsTable from "./YieldsTable";
-import { toastError } from "@/utils/toast";
 import { Loading } from "@/components/Loading";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 
 export const Yield = () => {
-  const { yields, summary, loading, fetchYields, fetchCropSummary } =
-    useYields();
-
-  console.log(yields);
-
-  // Initial fetch
-  useEffect(() => {
-    const init = async () => {
-      await Promise.all([fetchYields(), fetchCropSummary()]);
-    };
-    init();
-  }, [fetchYields, fetchCropSummary]);
+  const { data: yields = [], isLoading } = useYields();
+  const yieldsArr = Array.isArray(yields)
+    ? yields
+    : Array.isArray(yields?.data)
+    ? yields.data
+    : [];
+  const deleteYieldMutation = useDeleteYield();
 
   // Format numbers with commas
   const formatRupees = (num) =>
@@ -44,22 +38,47 @@ export const Yield = () => {
 
   // Totals
   const totalIncome =
-    yields?.reduce(
+    yieldsArr.reduce(
       (sum, y) => sum + (Number(y.sellingPrice?.totalPrice) || 0),
       0
     ) || 0;
 
   const totalQuantityKg =
-    yields?.reduce((sum, y) => sum + toKg(Number(y.quantity), y.unit), 0) || 0;
+    yieldsArr.reduce((sum, y) => sum + toKg(Number(y.quantity), y.unit), 0) ||
+    0;
 
-  const totalHarvests = yields?.length || 0;
+  const totalHarvests = yieldsArr.length || 0;
 
   // Derived totals from summary (if available)
+  // Derive summary per crop from yields (expenses not available here, default to 0)
+  const summary = yieldsArr.reduce((acc, y) => {
+    const cropName = y?.cropName || y?.crop || "Unknown";
+    const revenue = Number(y.sellingPrice?.totalPrice) || 0;
+    const qty = Number(y.quantity) || 0;
+    let item = acc.find((i) => i.cropName === cropName);
+    if (item) {
+      item.totalRevenue += revenue;
+      item.totalQuantity += qty;
+      item.totalExpense = item.totalExpense || 0;
+      item.profit = item.totalRevenue - (item.totalExpense || 0);
+    } else {
+      acc.push({
+        _id: cropName,
+        cropName,
+        totalRevenue: revenue,
+        totalQuantity: qty,
+        totalExpense: 0,
+        profit: revenue,
+      });
+    }
+    return acc;
+  }, []);
+
   const totalExpenses =
-    summary?.reduce((sum, s) => sum + (Number(s.totalExpense) || 0), 0) || 0;
+    summary.reduce((sum, s) => sum + (Number(s.totalExpense) || 0), 0) || 0;
 
   const netProfit =
-    summary?.reduce((sum, s) => sum + (Number(s.profit) || 0), 0) || 0;
+    summary.reduce((sum, s) => sum + (Number(s.profit) || 0), 0) || 0;
 
   const avgYieldPerCrop =
     summary?.length > 0 ? totalQuantityKg / summary.length : 0;
@@ -81,7 +100,7 @@ export const Yield = () => {
   };
 
   // Loading state
-  if (loading) return <Loading />;
+  if (isLoading) return <Loading />;
 
   // UI
   return (
@@ -147,7 +166,7 @@ export const Yield = () => {
           </div>
 
           {/* Table */}
-          <YieldsTable yields={yields} />
+          <YieldsTable yields={yieldsArr} />
 
           {/* Crop Summary Cards */}
           {summary?.length > 0 && (

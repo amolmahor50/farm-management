@@ -1,5 +1,14 @@
-import { Cloud } from "lucide-react";
-import { mockWeather } from "../../data/mockData";
+import { Cloud, Droplets, Wind } from "lucide-react";
+import {
+  TypographyH2,
+  TypographyMuted,
+  TypographySmall,
+  TypographyH4,
+} from "@/custom/Typography";
+import { Card } from "@/components/ui/card";
+import { Icon } from "@/custom/Icon";
+import { Loading } from "@/components/Loading";
+import { EmptyState } from "@/components/EmptyState";
 
 export const Weather = () => {
   return (

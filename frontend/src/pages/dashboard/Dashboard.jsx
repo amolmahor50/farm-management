@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ResponsiveContainer,
@@ -19,32 +19,74 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TypographyH2, TypographyH3 } from "@/custom/Typography";
 import { Icon } from "@/custom/Icon";
-import {
-  mockExpenses,
-  mockYields,
-  mockLoans,
-  mockTasks,
-} from "@/data/mockData";
 import { SummaryCard } from "@/components/SummaryCard";
 import { QuickLoan } from "@/pages/loans/QuickLoan";
 import { QuickYield } from "@/pages/yield/QuickYield";
 import { QuickExpense } from "@/pages/expenses/QuickExpense";
+import { useExpenses } from "@/hooks/useExpenses";
+import { useYields } from "@/hooks/useYields";
+import { useLoans } from "@/hooks/useLoans";
+import { useTasks } from "@/hooks/useTasks";
+import { Loading } from "@/components/Loading";
 
 export function Dashboard() {
+  const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
+  const { data: yields = [], isLoading: yieldsLoading } = useYields();
+  const { data: loans = [], isLoading: loansLoading } = useLoans();
+  const { data: tasks = [], isLoading: tasksLoading } = useTasks();
   const [modalType, setModalType] = useState(null);
   const navigate = useNavigate();
 
+  const isLoading =
+    expensesLoading || yieldsLoading || loansLoading || tasksLoading;
+
+  if (isLoading) return <Loading />;
+
+  // Normalize API responses: some endpoints return an object like { data: [...] }
+  const expensesArr = Array.isArray(expenses)
+    ? expenses
+    : Array.isArray(expenses?.data)
+    ? expenses.data
+    : [];
+  const yieldsArr = Array.isArray(yields)
+    ? yields
+    : Array.isArray(yields?.data)
+    ? yields.data
+    : [];
+  const loansArr = Array.isArray(loans)
+    ? loans
+    : Array.isArray(loans?.data)
+    ? loans.data
+    : [];
+  const tasksArr = Array.isArray(tasks)
+    ? tasks
+    : Array.isArray(tasks?.data)
+    ? tasks.data
+    : [];
+
   // Summary calculations
-  const totalExpenses = mockExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const totalIncome = mockYields.reduce((sum, y) => sum + y.totalIncome, 0);
-  const activeLoans = mockLoans.filter((l) => l.status === "Active");
-  const totalLoanAmount = activeLoans.reduce((sum, l) => sum + l.amount, 0);
+  const totalExpenses = expensesArr.reduce(
+    (sum, e) => sum + (Number(e.amount) || 0),
+    0
+  );
+  const totalIncome = yieldsArr.reduce(
+    (sum, y) => sum + (Number(y.sellingPrice?.totalPrice) || 0),
+    0
+  );
+  const activeLoans = loansArr.filter(
+    (l) => l.status?.toLowerCase() === "active"
+  );
+  const totalLoanAmount = activeLoans.reduce(
+    (sum, l) => sum + (Number(l.principal) || 0),
+    0
+  );
   const netProfit = totalIncome - totalExpenses;
 
   // Expense by category
   const pieData = Object.entries(
-    mockExpenses.reduce((acc, exp) => {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+    expensesArr.reduce((acc, exp) => {
+      const cat = exp?.category || "Uncategorized";
+      acc[cat] = (acc[cat] || 0) + (Number(exp.amount) || 0);
       return acc;
     }, {})
   ).map(([name, value]) => ({ name, value }));
@@ -53,31 +95,38 @@ export function Dashboard() {
 
   // Monthly income vs expense
   const monthlyData = [];
-  mockExpenses.forEach((e) => {
-    const month = new Date(e.date).toLocaleString("default", {
-      month: "short",
-    });
+  expensesArr.forEach((e) => {
+    const month = e?.date
+      ? new Date(e.date).toLocaleString("default", { month: "short" })
+      : "Unknown";
     const found = monthlyData.find((m) => m.month === month);
-    if (found) found.expenses += e.amount;
-    else monthlyData.push({ month, expenses: e.amount, income: 0 });
+    if (found) found.expenses += Number(e.amount) || 0;
+    else
+      monthlyData.push({ month, expenses: Number(e.amount) || 0, income: 0 });
   });
-  mockYields.forEach((y) => {
-    const month = new Date(y.date).toLocaleString("default", {
-      month: "short",
-    });
+  yieldsArr.forEach((y) => {
+    const month = y?.date
+      ? new Date(y.date).toLocaleString("default", { month: "short" })
+      : "Unknown";
     const found = monthlyData.find((m) => m.month === month);
-    if (found) found.income += y.totalIncome;
-    else monthlyData.push({ month, expenses: 0, income: y.totalIncome });
+    const income = Number(y.sellingPrice?.totalPrice) || 0;
+    if (found) found.income += income;
+    else monthlyData.push({ month, expenses: 0, income });
   });
 
   // Yield data (bar)
-  const yieldData = mockYields.reduce((acc, y) => {
-    const found = acc.find((i) => i.crop === y.crop);
+  const yieldData = yieldsArr.reduce((acc, y) => {
+    const cropName = y?.cropName || y?.crop || "Unknown";
+    const found = acc.find((i) => i.crop === cropName);
     if (found) {
-      found.quantity += y.quantity;
-      found.income += y.totalIncome;
+      found.quantity += Number(y.quantity) || 0;
+      found.income += Number(y.sellingPrice?.totalPrice) || 0;
     } else
-      acc.push({ crop: y.crop, quantity: y.quantity, income: y.totalIncome });
+      acc.push({
+        crop: cropName,
+        quantity: Number(y.quantity) || 0,
+        income: Number(y.sellingPrice?.totalPrice) || 0,
+      });
     return acc;
   }, []);
 
@@ -271,22 +320,28 @@ export function Dashboard() {
           </div>
           {activeLoans.length > 0 ? (
             <div className="space-y-3">
-              {activeLoans.map((loan) => (
-                <div key={loan.id} className="p-3 border rounded-lg">
+              {activeLoans.slice(0, 5).map((loan) => (
+                <div key={loan._id} className="p-3 border rounded-lg">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-medium">{loan.lenderName}</span>
+                    <span className="font-medium">
+                      {loan.lender?.name || "Unknown"}
+                    </span>
                     <span className="font-bold text-blue-600">
-                      ₹{loan.amount.toLocaleString()}
+                      ₹{Number(loan.principal).toLocaleString()}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    EMI: ₹{loan.emiAmount} ({loan.paidEmis}/{loan.totalEmis})
+                    EMI: ₹{Number(loan.emiAmount).toLocaleString()} (
+                    {loan.paidEmis || 0}/{loan.tenure?.months || 0})
                   </p>
                   <div className="h-2 bg-gray-200 rounded-full mt-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full"
                       style={{
-                        width: `${(loan.paidEmis / loan.totalEmis) * 100}%`,
+                        width: `${
+                          ((loan.paidEmis || 0) / (loan.tenure?.months || 1)) *
+                          100
+                        }%`,
                       }}
                     />
                   </div>
@@ -308,14 +363,14 @@ export function Dashboard() {
               View All
             </Button>
           </div>
-          {mockTasks.filter((t) => t.status === "Pending").length > 0 ? (
+          {tasksArr.filter((t) => t.status === "Pending").length > 0 ? (
             <div className="space-y-3">
-              {mockTasks
+              {tasksArr
                 .filter((t) => t.status === "Pending")
                 .slice(0, 5)
                 .map((t) => (
                   <div
-                    key={t.id}
+                    key={t._id}
                     className="p-3 border rounded-lg flex justify-between items-center"
                   >
                     <div>
@@ -325,7 +380,7 @@ export function Dashboard() {
                       </p>
                     </div>
                     <div className="text-right text-sm">
-                      <p>{t.date}</p>
+                      <p>{new Date(t.date).toLocaleDateString()}</p>
                       <p className="text-gray-500">{t.time}</p>
                     </div>
                   </div>

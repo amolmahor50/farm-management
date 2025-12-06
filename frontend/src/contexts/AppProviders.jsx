@@ -1,18 +1,6 @@
 import { AuthProvider } from "./AuthContext";
-import { DashboardProvider } from "./DashboardContext";
-import { ExpenseProvider } from "./ExpenseContext";
-import { LoanProvider } from "./LoanContext";
-import { TaskProvider } from "./TaskContext";
-import { YieldProvider } from "./YieldContext";
 
-const contexts = [
-  [AuthProvider],
-  // [DashboardProvider],
-  [TaskProvider],
-  [ExpenseProvider],
-  [YieldProvider],
-  [LoanProvider],
-];
+const contexts = [];
 
 export const AppProviders = ({ children }) => {
   return contexts.reduceRight(

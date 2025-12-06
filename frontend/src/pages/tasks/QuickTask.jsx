@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTasks } from "@/contexts/TaskContext";
+import { useCreateTask, useUpdateTask } from "@/hooks/useTasks";
 import {
   PRIORITY_LEVELS,
   TASK_TYPES,
@@ -33,7 +33,9 @@ import {
 } from "../../constants/taskConstants";
 
 export const QuickTask = ({ trigger, task, view = false }) => {
-  const { addTask, updateTask, loading } = useTasks();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const loading = createTask.isLoading || updateTask.isLoading;
   const today = new Date().toISOString().split("T")[0];
 
   const defaultFormData = {
@@ -143,8 +145,8 @@ export const QuickTask = ({ trigger, task, view = false }) => {
         : undefined,
     };
 
-    if (task) await updateTask(task._id, cleanData);
-    else await addTask(cleanData);
+    if (task) await updateTask.mutateAsync({ id: task._id, ...cleanData });
+    else await createTask.mutateAsync(cleanData);
 
     setFormData(defaultFormData);
     closeSheet?.();

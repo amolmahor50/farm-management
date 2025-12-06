@@ -20,12 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useExpenses } from "@/contexts/ExpenseContext";
+import { useCreateExpense, useUpdateExpense } from "@/hooks/useExpenses";
 import { CATEGORIES, PAYMENT_METHODS } from "@/constants/expensesConstants";
 
 export const QuickExpense = ({ expense, trigger, view = false }) => {
   const today = new Date().toISOString().split("T")[0];
-  const { addExpense, updateExpense } = useExpenses();
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
 
   const [formData, setFormData] = useState({
     date: today,
@@ -119,11 +120,10 @@ export const QuickExpense = ({ expense, trigger, view = false }) => {
           ? formData.tags.split(",").map((t) => t.trim())
           : [],
       };
-
       if (expense?._id) {
-        await updateExpense(expense._id, payload);
+        await updateExpense.mutateAsync({ id: expense._id, ...payload });
       } else {
-        await addExpense(payload);
+        await createExpense.mutateAsync(payload);
       }
       setOpen(false);
     } catch (error) {

@@ -17,30 +17,38 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Icon } from "@/custom/Icon";
-import { useAuth } from "../../contexts/AuthContext";
-import { dataStore } from "../../utils/dataStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useCreateForumPost } from "@/hooks/useForum";
 
 export const NewPostDialog = ({ onPostCreated }) => {
   const { user } = useAuth();
+  const createPostMutation = useCreateForumPost();
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     category: "General",
   });
+  const [open, setOpen] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    dataStore.addForumPost({
-      userId: user?.id || "1",
-      userName: user?.name || "Anonymous",
-      ...formData,
-    });
-    setFormData({ title: "", content: "", category: "General" });
-    onPostCreated();
+    try {
+      await createPostMutation.mutateAsync({
+        title: formData.title,
+        content: formData.content,
+        category: formData.category,
+        author: user?.name || "Anonymous",
+      });
+      setFormData({ title: "", content: "", category: "General" });
+      setOpen(false);
+      onPostCreated?.();
+    } catch (error) {
+      console.error("Failed to create post:", error);
+    }
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
           <Icon name="Plus" /> New Post
@@ -105,8 +113,9 @@ export const NewPostDialog = ({ onPostCreated }) => {
             <Button
               type="submit"
               className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={createPostMutation.isPending}
             >
-              Post
+              {createPostMutation.isPending ? "Posting..." : "Post"}
             </Button>
           </DialogFooter>
         </form>

@@ -9,19 +9,27 @@ import {
   TypographySmall,
 } from "@/custom/Typography";
 import { SummaryCard } from "@/components/SummaryCard";
-import { useLoan } from "@/contexts/LoanContext";
+import { useLoans } from "@/hooks/useLoans";
+import { Loading } from "@/components/Loading";
 import { QuickLoan } from "./QuickLoan";
 import LoanTable from "./LoanTable";
 import { EmptyState } from "@/components/EmptyState";
 import { loanTypes, lenderTypes } from "@/constants/loanConstants";
 
 export const Loans = () => {
-  const { loans } = useLoan();
+  const { data: loans = [], isLoading } = useLoans();
+  const loansArr = Array.isArray(loans)
+    ? loans
+    : Array.isArray(loans?.data)
+    ? loans.data
+    : [];
+
+  if (isLoading) return <Loading />;
 
   // Normalize data
   const normalizedLoans = useMemo(
     () =>
-      loans.map((loan) => ({
+      loansArr.map((loan) => ({
         id: loan._id,
         lenderName: loan?.lender?.name || "Unknown",
         loanType: loan?.loanType || "N/A",
@@ -38,7 +46,7 @@ export const Loans = () => {
         status: loan?.status?.toLowerCase() || "pending",
         lenderType: loan?.lender?.type || "other",
       })),
-    [loans]
+    [loansArr]
   );
 
   // Categorize loans
@@ -99,7 +107,7 @@ export const Loans = () => {
 
   return (
     <>
-      {loans.length > 0 ? (
+      {loansArr.length > 0 ? (
         <div className="space-y-8">
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

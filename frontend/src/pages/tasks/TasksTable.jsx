@@ -22,10 +22,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/custom/Icon";
 import { QuickTask } from "./QuickTask";
-import { useTasks } from "@/contexts/TaskContext";
+import { useTasks, useDeleteTask, useCompleteTask } from "@/hooks/useTasks";
 
 export const TasksTable = () => {
-  const { tasks, removeTask, completeTask, loading } = useTasks();
+  const { data: tasks = [], isLoading: loading } = useTasks();
+  const deleteMutation = useDeleteTask();
+  const completeMutation = useCompleteTask();
+
+  const tasksArr = Array.isArray(tasks)
+    ? tasks
+    : Array.isArray(tasks?.data)
+    ? tasks.data
+    : [];
 
   // Badge styles
   const getPriorityBadge = (priority) => {
@@ -92,14 +100,14 @@ export const TasksTable = () => {
                   Loading tasks...
                 </TableCell>
               </TableRow>
-            ) : tasks?.length === 0 ? (
+            ) : tasksArr.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-4">
                   No tasks found.
                 </TableCell>
               </TableRow>
             ) : (
-              tasks.map((task) => (
+              tasksArr.map((task) => (
                 <TableRow key={task._id}>
                   <TableCell className="font-medium">{task.title}</TableCell>
                   <TableCell>{task.taskType || "-"}</TableCell>
@@ -167,7 +175,7 @@ export const TasksTable = () => {
                         {/* Mark Complete */}
                         {task.status !== "completed" && (
                           <DropdownMenuItem
-                            onClick={() => completeTask(task._id)}
+                            onClick={() => completeMutation.mutate(task._id)}
                             className="cursor-pointer flex items-center gap-2 text-green-600"
                           >
                             <Icon name="Check" className="h-4 w-4" />
@@ -177,7 +185,7 @@ export const TasksTable = () => {
 
                         {/* Delete */}
                         <DropdownMenuItem
-                          onClick={() => removeTask(task._id)}
+                          onClick={() => deleteMutation.mutate(task._id)}
                           className="cursor-pointer flex items-center gap-2 text-red-600"
                         >
                           <Icon name="Trash2" className="h-4 w-4" />

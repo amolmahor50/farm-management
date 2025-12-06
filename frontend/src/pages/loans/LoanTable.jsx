@@ -19,7 +19,7 @@ import {
 } from "@/custom/Typography";
 import { Progress } from "@/components/ui/progress";
 import { QuickLoan } from "./QuickLoan";
-import { useLoan } from "@/contexts/LoanContext";
+import { useDeleteLoan } from "@/hooks/useLoans";
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import AuthLayout from "@/view/auth/AuthLayout";
@@ -23,9 +23,9 @@ import { AIInsights } from "@/pages/ai-insights/AIInsights";
 import { Loading } from "@/components/Loading";
 
 function App() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (isAuthenticated) return <Loading />;
+  if (isLoading) return <Loading />;
 
   return (
     <Routes>

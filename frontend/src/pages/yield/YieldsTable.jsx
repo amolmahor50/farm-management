@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { QuickYield } from "./QuickYield";
-import { useYields } from "@/contexts/YieldContext";
+import { useDeleteYield } from "@/hooks/useYields";
 import { DeleteDialog } from "@/components/DeleteDialog";
 import { formatDateTime } from "@/utils/formatDateTime";
 import {
@@ -38,7 +38,7 @@ import {
 import { capitalize } from "../../utils/capatalize";
 
 export default function YieldsTable({ yields }) {
-  const { removeYield } = useYields();
+  const deleteYieldMutation = useDeleteYield();
 
   // ✅ Pagination
   const [currentPage, setCurrentPage] = useState(1);

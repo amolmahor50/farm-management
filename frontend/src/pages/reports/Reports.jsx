@@ -1,4 +1,4 @@
-import { mockExpenses, mockYields, mockLoans } from "@/data/mockData";
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -16,12 +16,16 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/custom/Icon";
 import {
   TypographyH2,
-  TypographyH3,
   TypographyH4,
   TypographyMuted,
+  TypographyH3,
   TypographySmall,
 } from "@/custom/Typography";
 import { SummaryCard } from "@/components/SummaryCard";
+import { useExpenses } from "@/hooks/useExpenses";
+import { useYields } from "@/hooks/useYields";
+import { useLoans } from "@/hooks/useLoans";
+import { Loading } from "@/components/Loading";
 
 const ExportButtons = ({ type }) => (
   <div className="flex gap-2">
@@ -49,51 +53,96 @@ const ReportCard = ({ title, children, type }) => (
 );
 
 export const Reports = () => {
-  const totalExpenses = mockExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const totalIncome = mockYields.reduce((sum, y) => sum + y.totalIncome, 0);
-  const totalLoans = mockLoans.reduce((sum, l) => sum + l.amount, 0);
+  const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
+  const { data: yields = [], isLoading: yieldsLoading } = useYields();
+  const { data: loans = [], isLoading: loansLoading } = useLoans();
+
+  if (expensesLoading || yieldsLoading || loansLoading) return <Loading />;
+
+  const expensesArr = Array.isArray(expenses)
+    ? expenses
+    : Array.isArray(expenses?.data)
+    ? expenses.data
+    : [];
+  const yieldsArr = Array.isArray(yields)
+    ? yields
+    : Array.isArray(yields?.data)
+    ? yields.data
+    : [];
+  const loansArr = Array.isArray(loans)
+    ? loans
+    : Array.isArray(loans?.data)
+    ? loans.data
+    : [];
+
+  const totalExpenses = expensesArr.reduce(
+    (sum, exp) => sum + (Number(exp.amount) || 0),
+    0
+  );
+  const totalIncome = yieldsArr.reduce(
+    (sum, y) =>
+      sum + (Number(y.totalIncome || y.sellingPrice?.totalPrice) || 0),
+    0
+  );
+  const totalLoans = loansArr.reduce(
+    (sum, l) => sum + (Number(l.amount || l.principal) || 0),
+    0
+  );
   const netProfit = totalIncome - totalExpenses;
 
   // Monthly financial summary
-  const monthlyData = mockExpenses.reduce((acc, exp) => {
-    const month = new Date(exp.date).toLocaleString("default", {
-      month: "short",
-    });
+  const monthlyData = expensesArr.reduce((acc, exp) => {
+    const month = exp?.date
+      ? new Date(exp.date).toLocaleString("default", { month: "short" })
+      : "Unknown";
     const existing = acc.find((item) => item.month === month);
-    if (existing) existing.expenses += exp.amount;
-    else acc.push({ month, expenses: exp.amount, income: 0, profit: 0 });
+    if (existing) existing.expenses += Number(exp.amount) || 0;
+    else
+      acc.push({
+        month,
+        expenses: Number(exp.amount) || 0,
+        income: 0,
+        profit: 0,
+      });
     return acc;
   }, []);
-  mockYields.forEach((y) => {
-    const month = new Date(y.date).toLocaleString("default", {
-      month: "short",
-    });
+  yieldsArr.forEach((y) => {
+    const month = y?.date
+      ? new Date(y.date).toLocaleString("default", { month: "short" })
+      : "Unknown";
     const existing = monthlyData.find((item) => item.month === month);
     if (existing) {
-      existing.income += y.totalIncome;
+      existing.income +=
+        Number(y.totalIncome || y.sellingPrice?.totalPrice) || 0;
       existing.profit = existing.income - existing.expenses;
     }
   });
 
   // Crop-wise performance
-  const cropPerformance = mockYields.reduce((acc, y) => {
+  const cropPerformance = yieldsArr.reduce((acc, y) => {
     const existing = acc.find((c) => c.crop === y.crop);
     if (existing) {
-      existing.income += y.totalIncome;
-      existing.quantity += y.quantity;
+      existing.income += Number(y.totalIncome) || 0;
+      existing.quantity += Number(y.quantity) || 0;
     } else
-      acc.push({ crop: y.crop, income: y.totalIncome, quantity: y.quantity });
+      acc.push({
+        crop: y.crop,
+        income: Number(y.totalIncome) || 0,
+        quantity: Number(y.quantity) || 0,
+      });
     return acc;
   }, []);
-  mockExpenses.forEach((exp) => {
+  expensesArr.forEach((exp) => {
     const existing = cropPerformance.find((c) => c.crop === exp.crop);
-    if (existing) existing.income -= exp.amount;
+    if (existing) existing.income -= Number(exp.amount) || 0;
   });
 
   const topExpenseCategory = Object.entries(
-    mockExpenses.reduce(
+    expensesArr.reduce(
       (acc, exp) => (
-        (acc[exp.category] = (acc[exp.category] || 0) + exp.amount), acc
+        (acc[exp.category] =
+          (acc[exp.category] || 0) + (Number(exp.amount) || 0)),
+        acc
       ),
       {}
     )
@@ -201,20 +250,22 @@ export const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ReportCard title="Expense Report" type="expenses">
           <div className="space-y-3 mb-4">
-            {mockExpenses.slice(0, 5).map((exp) => (
+            {expensesArr.slice(0, 5).map((exp) => (
               <div
-                key={exp.id}
+                key={exp.id || exp._id}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
               >
                 <div>
                   <TypographySmall>{exp.category}</TypographySmall>
                   <TypographyMuted>
                     {exp.crop} -{" "}
-                    {new Date(exp.date).toLocaleDateString("en-IN")}
+                    {exp.date
+                      ? new Date(exp.date).toLocaleDateString("en-IN")
+                      : "-"}
                   </TypographyMuted>
                 </div>
                 <TypographySmall className="text-red-600">
-                  ₹{exp.amount.toLocaleString()}
+                  ₹{(Number(exp.amount) || 0).toLocaleString()}
                 </TypographySmall>
               </div>
             ))}
@@ -223,20 +274,25 @@ export const Reports = () => {
 
         <ReportCard title="Yield Report" type="yields">
           <div className="space-y-3 mb-4">
-            {mockYields.map((y) => (
+            {yieldsArr.map((y) => (
               <div
-                key={y.id}
+                key={y.id || y._id}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
               >
                 <div>
                   <TypographySmall>{y.crop}</TypographySmall>
                   <TypographyMuted>
                     {y.quantity} {y.unit} -{" "}
-                    {new Date(y.date).toLocaleDateString("en-IN")}
+                    {y.date
+                      ? new Date(y.date).toLocaleDateString("en-IN")
+                      : "-"}
                   </TypographyMuted>
                 </div>
                 <TypographySmall className="text-green-600">
-                  ₹{y.totalIncome.toLocaleString()}
+                  ₹
+                  {(
+                    Number(y.totalIncome || y.sellingPrice?.totalPrice) || 0
+                  ).toLocaleString()}
                 </TypographySmall>
               </div>
             ))}
@@ -265,7 +321,10 @@ export const Reports = () => {
           <Card className="gap-2">
             <TypographySmall>Profit Margin</TypographySmall>
             <TypographyH3 className="text-blue-600">
-              {((netProfit / totalIncome) * 100).toFixed(1)}%
+              {totalIncome
+                ? ((netProfit / totalIncome) * 100).toFixed(1)
+                : "0.0"}
+              %
             </TypographyH3>
             <TypographyMuted>Overall efficiency</TypographyMuted>
           </Card>
